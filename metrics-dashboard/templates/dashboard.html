@@ -294,6 +294,23 @@
                     plugins: {
                         legend: {
                             position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function() {
+                                    return 'Click to filter';
+                                }
+                            }
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const status = index === 0 ? 'PASS' : 'FAIL';
+                            filterByStatus(status);
                         }
                     }
                 }
@@ -453,6 +470,135 @@
 
         function refreshData() {
             loadDashboardData();
+        }
+
+        // Filter functions for Test Results Distribution chart
+        let currentFilter = null;
+
+        async function filterByStatus(status) {
+            currentFilter = status;
+
+            // Show filter indicator
+            showFilterIndicator(status);
+
+            // Reload filtered data
+            await loadRecentRuns(status);
+            await loadSlowestTests(status);
+
+            // Scroll to results
+            document.getElementById('recent-runs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showFilterIndicator(status) {
+            // Remove old indicator
+            const oldIndicator = document.querySelector('.filter-indicator');
+            if (oldIndicator) oldIndicator.remove();
+
+            // Add new indicator
+            const indicator = document.createElement('div');
+            indicator.className = 'filter-indicator';
+            indicator.style.cssText = 'position: fixed; top: 80px; right: 20px; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; display: flex; gap: 10px; align-items: center;';
+
+            const statusColor = status === 'PASS' ? '#10b981' : '#ef4444';
+            indicator.innerHTML = `
+                <span style="background: ${statusColor}; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>
+                <span>Filtered by: <strong>${status === 'PASS' ? 'Passed' : 'Failed'}</strong></span>
+                <button onclick="clearFilter()" style="background: white; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕ Clear</button>
+            `;
+
+            document.body.appendChild(indicator);
+        }
+
+        function clearFilter() {
+            currentFilter = null;
+
+            // Remove indicator
+            const indicator = document.querySelector('.filter-indicator');
+            if (indicator) indicator.remove();
+
+            // Reload all data
+            loadRecentRuns();
+            loadSlowestTests();
+        }
+
+        async function loadRecentRuns(statusFilter = null) {
+            const response = await fetch('/api/runs?limit=10');
+            const data = await response.json();
+
+            const container = document.getElementById('recent-runs');
+
+            let runs = data.runs;
+
+            // Apply filter
+            if (statusFilter === 'PASS') {
+                runs = runs.filter(run => run.summary.pass_rate === 100);
+            } else if (statusFilter === 'FAIL') {
+                runs = runs.filter(run => run.summary.failed > 0);
+            }
+
+            if (runs.length === 0) {
+                container.innerHTML = `<p class="no-data">No runs match the filter criteria.</p>`;
+                return;
+            }
+
+            let html = '<table><thead><tr><th>Run ID</th><th>Timestamp</th><th>Suite</th><th>Duration</th><th>Pass Rate</th><th>Tests</th><th>Actions</th></tr></thead><tbody>';
+
+            runs.forEach(run => {
+                const passRateClass = run.summary.pass_rate >= 80 ? 'badge-success' :
+                    run.summary.pass_rate >= 50 ? 'badge-warning' : 'badge-danger';
+                html += `
+            <tr>
+                <td><code>${run.run_id}</code></td>
+                <td>${formatTimestamp(run.timestamp)}</td>
+                <td>${escapeHtml(run.suite_name)}</td>
+                <td>${formatDuration(run.duration)}</td>
+                <td><span class="badge ${passRateClass}">${run.summary.pass_rate}%</span></td>
+                <td>${run.summary.passed}/${run.summary.total}</td>
+                <td>
+                    <a href="/run/${run.run_id}" class="btn btn-sm">View Details</a>
+                </td>
+            </tr>
+        `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function loadSlowestTests(statusFilter = null) {
+            const response = await fetch('/api/slowest-tests');
+            const data = await response.json();
+
+            const container = document.getElementById('slowest-tests');
+
+            let tests = data.tests;
+
+            // Apply filter
+            if (statusFilter) {
+                tests = tests.filter(test => test.status === statusFilter);
+            }
+
+            if (tests.length === 0) {
+                container.innerHTML = '<p class="no-data">No tests match the filter criteria.</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>Test Name</th><th>Duration</th><th>Status</th><th>Tags</th></tr></thead><tbody>';
+
+            tests.forEach(test => {
+                const statusClass = test.status === 'PASS' ? 'badge-success' : 'badge-danger';
+                html += `
+            <tr>
+                <td>${escapeHtml(test.name)}</td>
+                <td>${formatDuration(test.duration)}</td>
+                <td><span class="badge ${statusClass}">${test.status}</span></td>
+                <td>${test.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
+            </tr>
+        `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
         }
 
         // NEW: Clear History function
