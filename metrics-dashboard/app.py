@@ -1,5 +1,5 @@
 """
-Sunday Natural Products GmbH - Robot Framework Metrics Dashboard
+Robot Framework Metrics Dashboard
 Flask API и Web Interface
 """
 import os
@@ -40,6 +40,21 @@ def run_details(run_id):
     if not run:
         return "Run not found", 404
     return render_template('run_details.html', run=run)
+
+
+@app.route('/run/<run_id>/<filename>')
+def serve_archived_file(run_id, filename):
+    """Serve archived Robot Framework reports and screenshots"""
+    archive_dir = Path(HISTORY_DIR) / run_id
+
+    if not archive_dir.exists():
+        return f"Archive not found for run {run_id}", 404
+
+    file_path = archive_dir / filename
+    if not file_path.exists():
+        return f"File {filename} not found in archive", 404
+
+    return send_from_directory(str(archive_dir), filename)
 
 
 @app.route('/robot-report')

@@ -3,61 +3,61 @@
 {% block title %}Run Details - {{ run.run_id }}{% endblock %}
 
 {% block content %}
-<div class="container">
-    
-    <!-- Back Button -->
-    <div class="back-button">
-        <a href="/" class="btn">← Back to Dashboard</a>
-    </div>
+    <div class="container">
 
-    <!-- Run Header -->
-    <div class="run-header">
-        <h2>📊 Run Details</h2>
-        <div class="run-meta">
-            <span class="run-id"><strong>Run ID:</strong> <code>{{ run.run_id }}</code></span>
-            <span class="run-time"><strong>Time:</strong> {{ run.timestamp }}</span>
-            <span class="run-duration"><strong>Duration:</strong> {{ "%.2f"|format(run.duration) }}s</span>
+        <!-- Back Button -->
+        <div class="back-button">
+            <a href="/" class="btn">← Back to Dashboard</a>
         </div>
-    </div>
 
-    <!-- Summary Cards -->
-    <div class="stats-grid">
-        <div class="stat-card {% if run.summary.pass_rate >= 80 %}success{% elif run.summary.pass_rate >= 50 %}warning{% else %}danger{% endif %}">
-            <div class="stat-icon">📈</div>
-            <div class="stat-content">
-                <h3>{{ run.summary.pass_rate }}%</h3>
-                <p>Pass Rate</p>
+        <!-- Run Header -->
+        <div class="run-header">
+            <h2>📊 Run Details</h2>
+            <div class="run-meta">
+                <span class="run-id"><strong>Run ID:</strong> <code>{{ run.run_id }}</code></span>
+                <span class="run-time"><strong>Time:</strong> {{ run.timestamp }}</span>
+                <span class="run-duration"><strong>Duration:</strong> {{ "%.2f"|format(run.duration) }}s</span>
             </div>
         </div>
-        <div class="stat-card success">
-            <div class="stat-icon">✅</div>
-            <div class="stat-content">
-                <h3>{{ run.summary.passed }}</h3>
-                <p>Passed</p>
-            </div>
-        </div>
-        <div class="stat-card danger">
-            <div class="stat-icon">❌</div>
-            <div class="stat-content">
-                <h3>{{ run.summary.failed }}</h3>
-                <p>Failed</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">🧪</div>
-            <div class="stat-content">
-                <h3>{{ run.summary.total }}</h3>
-                <p>Total Tests</p>
-            </div>
-        </div>
-    </div>
 
-    <!-- Test Results Table -->
-    <div class="section">
-        <h3>🧪 Test Results</h3>
-        <div class="table-container">
-            <table>
-                <thead>
+        <!-- Summary Cards -->
+        <div class="stats-grid">
+            <div class="stat-card {% if run.summary.pass_rate >= 80 %}success{% elif run.summary.pass_rate >= 50 %}warning{% else %}danger{% endif %}">
+                <div class="stat-icon">📈</div>
+                <div class="stat-content">
+                    <h3>{{ run.summary.pass_rate }}%</h3>
+                    <p>Pass Rate</p>
+                </div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <h3>{{ run.summary.passed }}</h3>
+                    <p>Passed</p>
+                </div>
+            </div>
+            <div class="stat-card danger">
+                <div class="stat-icon">❌</div>
+                <div class="stat-content">
+                    <h3>{{ run.summary.failed }}</h3>
+                    <p>Failed</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🧪</div>
+                <div class="stat-content">
+                    <h3>{{ run.summary.total }}</h3>
+                    <p>Total Tests</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Results Table -->
+        <div class="section">
+            <h3>🧪 Test Results</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
                     <tr>
                         <th>Test Name</th>
                         <th>Status</th>
@@ -65,131 +65,131 @@
                         <th>Tags</th>
                         <th>Message</th>
                     </tr>
-                </thead>
-                <tbody>
+                    </thead>
+                    <tbody>
                     {% for test in run.tests %}
-                    <tr>
-                        <td>{{ test.name }}</td>
-                        <td>
+                        <tr>
+                            <td>{{ test.name }}</td>
+                            <td>
                             <span class="badge {% if test.status == 'PASS' %}badge-success{% else %}badge-danger{% endif %}">
                                 {{ test.status }}
                             </span>
-                        </td>
-                        <td>{{ "%.2f"|format(test.duration) }}s</td>
-                        <td>
-                            {% for tag in test.tags %}
-                            <span class="tag">{{ tag }}</span>
-                            {% endfor %}
-                        </td>
-                        <td class="test-message">{{ test.message[:100] }}{% if test.message|length > 100 %}...{% endif %}</td>
-                    </tr>
+                            </td>
+                            <td>{{ "%.2f"|format(test.duration) }}s</td>
+                            <td>
+                                {% for tag in test.tags %}
+                                    <span class="tag">{{ tag }}</span>
+                                {% endfor %}
+                            </td>
+                            <td class="test-message">{{ test.message[:100] }}{% if test.message|length > 100 %}...{% endif %}</td>
+                        </tr>
                     {% endfor %}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
 
-    <!-- Tag Statistics -->
-    {% if run.tag_stats %}
-    <div class="section">
-        <h3>🏷️ Statistics by Tag</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Tag</th>
-                        <th>Total</th>
-                        <th>Passed</th>
-                        <th>Failed</th>
-                        <th>Pass Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for tag in run.tag_stats %}
-                    <tr>
-                        <td><span class="tag">{{ tag.name }}</span></td>
-                        <td>{{ tag.total }}</td>
-                        <td><span class="badge badge-success">{{ tag.passed }}</span></td>
-                        <td><span class="badge badge-danger">{{ tag.failed }}</span></td>
-                        <td>
+        <!-- Tag Statistics -->
+        {% if run.tag_stats %}
+            <div class="section">
+                <h3>🏷️ Statistics by Tag</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Tag</th>
+                            <th>Total</th>
+                            <th>Passed</th>
+                            <th>Failed</th>
+                            <th>Pass Rate</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for tag in run.tag_stats %}
+                            <tr>
+                                <td><span class="tag">{{ tag.name }}</span></td>
+                                <td>{{ tag.total }}</td>
+                                <td><span class="badge badge-success">{{ tag.passed }}</span></td>
+                                <td><span class="badge badge-danger">{{ tag.failed }}</span></td>
+                                <td>
                             <span class="badge {% if tag.pass_rate >= 80 %}badge-success{% elif tag.pass_rate >= 50 %}badge-warning{% else %}badge-danger{% endif %}">
                                 {{ tag.pass_rate }}%
                             </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
 
-    <!-- Suite Statistics -->
-    {% if run.suite_stats %}
-    <div class="section">
-        <h3>📦 Statistics by Suite</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Suite</th>
-                        <th>Total</th>
-                        <th>Passed</th>
-                        <th>Failed</th>
-                        <th>Pass Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for suite in run.suite_stats %}
-                    <tr>
-                        <td>{{ suite.name }}</td>
-                        <td>{{ suite.total }}</td>
-                        <td><span class="badge badge-success">{{ suite.passed }}</span></td>
-                        <td><span class="badge badge-danger">{{ suite.failed }}</span></td>
-                        <td>
+        <!-- Suite Statistics -->
+        {% if run.suite_stats %}
+            <div class="section">
+                <h3>📦 Statistics by Suite</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Suite</th>
+                            <th>Total</th>
+                            <th>Passed</th>
+                            <th>Failed</th>
+                            <th>Pass Rate</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for suite in run.suite_stats %}
+                            <tr>
+                                <td>{{ suite.name }}</td>
+                                <td>{{ suite.total }}</td>
+                                <td><span class="badge badge-success">{{ suite.passed }}</span></td>
+                                <td><span class="badge badge-danger">{{ suite.failed }}</span></td>
+                                <td>
                             <span class="badge {% if suite.pass_rate >= 80 %}badge-success{% elif suite.pass_rate >= 50 %}badge-warning{% else %}badge-danger{% endif %}">
                                 {{ suite.pass_rate }}%
                             </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="section">
+            <h3>📄 Robot Framework Reports</h3>
+            <div class="actions-grid">
+                <a href="/run/{{ run.run_id }}/report.html" target="_blank" class="btn btn-primary">📊 View Report</a>
+                <a href="/run/{{ run.run_id }}/log.html" target="_blank" class="btn btn-primary">📝 View Log</a>
+                <button onclick="deleteRun('{{ run.run_id }}')" class="btn btn-danger">🗑️ Delete Run</button>
+            </div>
         </div>
-    </div>
-    {% endif %}
 
-    <!-- Actions -->
-    <div class="section">
-        <h3>📄 Robot Framework Reports</h3>
-        <div class="actions-grid">
-            <a href="/robot-report" target="_blank" class="btn btn-primary">View Report</a>
-            <a href="/robot-log" target="_blank" class="btn btn-primary">View Log</a>
-            <button onclick="deleteRun('{{ run.run_id }}')" class="btn btn-danger">Delete Run</button>
-        </div>
     </div>
 
-</div>
+    <script>
+        async function deleteRun(runId) {
+            if (!confirm('Are you sure you want to delete this run?')) {
+                return;
+            }
 
-<script>
-async function deleteRun(runId) {
-    if (!confirm('Are you sure you want to delete this run?')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/delete/${runId}`, { method: 'DELETE' });
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-            alert('✅ Run deleted successfully!');
-            window.location.href = '/';
-        } else {
-            alert('❌ Error: ' + data.error);
+            try {
+                const response = await fetch(`/api/delete/${runId}`, { method: 'DELETE' });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('✅ Run deleted successfully!');
+                    window.location.href = '/';
+                } else {
+                    alert('❌ Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Error deleting run: ' + error.message);
+            }
         }
-    } catch (error) {
-        alert('❌ Error deleting run: ' + error.message);
-    }
-}
-</script>
+    </script>
 {% endblock %}

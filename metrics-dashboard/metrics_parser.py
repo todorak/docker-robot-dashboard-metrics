@@ -1,11 +1,12 @@
 """
 Robot Framework Metrics Parser
-Парсва output.xml и генерира метрики
+Парсва output.xml и генерира метрики + архивира Robot Framework reports
 """
 import os
 import json
 import hashlib
 import time
+import shutil
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -192,8 +193,48 @@ class MetricsParser:
         data = f"{timestamp}-{total}-{passed}-{failed}-{current_time}-{file_mtime}"
         return hashlib.md5(data.encode()).hexdigest()[:12]
 
+    def archive_robot_reports(self, run_id: str) -> bool:
+        """
+        Архивира Robot Framework HTML reports, log и screenshots за даден run
+        """
+        try:
+            # Създай archive директория за този run
+            archive_dir = self.history_dir / run_id
+            archive_dir.mkdir(exist_ok=True)
+
+            archived_files = []
+
+            # 1. Архивирай основните Robot Framework файлове
+            robot_files = ['report.html', 'log.html', 'output.xml']
+            for filename in robot_files:
+                src = self.results_dir / filename
+                if src.exists():
+                    dst = archive_dir / filename
+                    shutil.copy2(src, dst)
+                    archived_files.append(filename)
+
+            # 2. Архивирай всички screenshots и лог файлове
+            for pattern in ['*.png', '*.jpg', '*.jpeg']:
+                for file in self.results_dir.glob(pattern):
+                    dst = archive_dir / file.name
+                    shutil.copy2(file, dst)
+                    archived_files.append(file.name)
+
+            if archived_files:
+                print(f"📦 Archived {len(archived_files)} files for run {run_id}")
+                return True
+            else:
+                print(f"⚠️  No files to archive for run {run_id}")
+                return False
+
+        except Exception as e:
+            print(f"❌ Error archiving reports for {run_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
     def save_metrics(self, metrics: Dict) -> bool:
-        """Записва метриките в history"""
+        """Записва метриките в history и архивира Robot reports"""
         try:
             run_id = metrics['run_id']
             file_path = self.history_dir / f"{run_id}.json"
@@ -202,10 +243,15 @@ class MetricsParser:
                 print(f"⏭️  Run {run_id} already exists, skipping...")
                 return False  # Don't create duplicate
 
+            # Запази JSON метриките
             with open(file_path, 'w') as f:
                 json.dump(metrics, f, indent=2)
 
             print(f"✓ Metrics saved: {metrics['run_id']}")
+
+            # Архивирай Robot Framework reports
+            self.archive_robot_reports(run_id)
+
             return True
 
         except Exception as e:
