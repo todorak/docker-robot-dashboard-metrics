@@ -146,6 +146,12 @@ def serve_robot_files(filename):
     return "Not allowed", 403
 
 
+@app.route('/api-docs')
+def api_docs():
+    """API Documentation page"""
+    return render_template('api_docs.html')
+
+
 # ============================================================================
 # API ROUTES
 # ============================================================================

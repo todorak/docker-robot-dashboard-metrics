@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}API Documentation{% endblock %}
+
+{% block content %}
+    <div class="container">
+
+        <!-- Header -->
+        <div class="page-header">
+            <h1>📚 API Documentation</h1>
+            <p>Complete REST API reference for Robot Framework Metrics Dashboard</p>
+        </div>
+
+        <!-- Base URL -->
+        <div class="section">
+            <h3>🌐 Base URL</h3>
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; margin: 10px 0;">
+                http://localhost:5000
+            </div>
+            <p style="color: #6b7280; margin-top: 10px;">
+                All API endpoints are relative to this base URL. Replace with your actual server address in production.
+            </p>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="section">
+            <h3>⚡ Quick Access</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                <a href="/api/status" class="btn btn-primary" target="_blank">📊 API Status</a>
+                <a href="/api/runs" class="btn btn-primary" target="_blank">📋 All Runs</a>
+                <a href="/api/trends" class="btn btn-primary" target="_blank">📈 Trends</a>
+                <a href="/api/tag-stats" class="btn btn-primary" target="_blank">🏷️ Tag Stats</a>
+            </div>
+        </div>
+
+        <!-- General Endpoints -->
+        <div class="section">
+            <h3>🔧 General Endpoints</h3>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/health</code>
+                </div>
+                <p>Health check endpoint to verify service availability.</p>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl http://localhost:5000/health</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/health', 'GET', 'health')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-health"></div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/status</code>
+                </div>
+                <p>Get overall API status with latest run information and statistics.</p>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl http://localhost:5000/api/status</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/api/status', 'GET', 'status')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-status"></div>
+            </div>
+        </div>
+
+        <!-- Runs Endpoints -->
+        <div class="section">
+            <h3>📋 Test Runs</h3>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/runs</code>
+                </div>
+                <p>Retrieve list of all test runs with summary information.</p>
+                <div class="params">
+                    <strong>Query Parameters:</strong>
+                    <ul>
+                        <li><code>limit</code> (integer, default: 50) - Maximum number of runs to return</li>
+                    </ul>
+                </div>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl "http://localhost:5000/api/runs?limit=10"</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/api/runs?limit=10', 'GET', 'runs')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-runs"></div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/runs/{run_id}</code>
+                </div>
+                <p>Get detailed information about a specific test run including all test results.</p>
+                <div class="params">
+                    <strong>Path Parameters:</strong>
+                    <ul>
+                        <li><code>run_id</code> (string) - Unique identifier of the test run</li>
+                    </ul>
+                </div>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl http://localhost:5000/api/runs/abc123</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-danger">DELETE</span>
+                    <code>/api/delete/{run_id}</code>
+                </div>
+                <p>Delete a specific test run from history.</p>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl -X DELETE http://localhost:5000/api/delete/abc123</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Endpoints -->
+        <div class="section">
+            <h3>📈 Analytics & Trends</h3>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/trends</code>
+                </div>
+                <p>Get trend data for charts showing pass rates and test counts over time.</p>
+                <div class="params">
+                    <strong>Query Parameters:</strong>
+                    <ul>
+                        <li><code>runs</code> (integer, default: 20) - Number of recent runs to include</li>
+                    </ul>
+                </div>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl "http://localhost:5000/api/trends?runs=20"</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/api/trends?runs=20', 'GET', 'trends')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-trends"></div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/flaky-tests</code>
+                </div>
+                <p>Identify unstable tests that fail intermittently.</p>
+                <div class="params">
+                    <strong>Query Parameters:</strong>
+                    <ul>
+                        <li><code>runs</code> (integer, default: 10) - Number of runs to analyze</li>
+                    </ul>
+                </div>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl "http://localhost:5000/api/flaky-tests?runs=10"</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/api/flaky-tests?runs=10', 'GET', 'flaky')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-flaky"></div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/slowest-tests</code>
+                </div>
+                <p>Get the slowest running tests from latest or specific run.</p>
+                <div class="params">
+                    <strong>Query Parameters:</strong>
+                    <ul>
+                        <li><code>run_id</code> (string, optional) - Specific run to analyze (defaults to latest)</li>
+                    </ul>
+                </div>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl http://localhost:5000/api/slowest-tests</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/api/slowest-tests', 'GET', 'slowest')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-slowest"></div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/compare</code>
+                </div>
+                <p>Compare two test runs side-by-side.</p>
+                <div class="params">
+                    <strong>Query Parameters:</strong>
+                    <ul>
+                        <li><code>run1</code> (string, required) - First run ID to compare</li>
+                        <li><code>run2</code> (string, required) - Second run ID to compare</li>
+                    </ul>
+                </div>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl "http://localhost:5000/api/compare?run1=abc123&run2=def456"</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tags & Suites -->
+        <div class="section">
+            <h3>🏷️ Tags & Test Organization</h3>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/tag-stats</code>
+                </div>
+                <p>Get statistics for all tags from the latest test run.</p>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl http://localhost:5000/api/tag-stats</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/api/tag-stats', 'GET', 'tag-stats')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-tag-stats"></div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/tag/{tag}</code>
+                </div>
+                <p>Get all tests with a specific tag from the latest run.</p>
+                <div class="params">
+                    <strong>Path Parameters:</strong>
+                    <ul>
+                        <li><code>tag</code> (string) - Tag name to filter by</li>
+                    </ul>
+                </div>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl http://localhost:5000/api/tag/smoke</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/tag/{tag}/history</code>
+                </div>
+                <p>Get performance history for a specific tag across multiple runs.</p>
+                <div class="params">
+                    <strong>Query Parameters:</strong>
+                    <ul>
+                        <li><code>limit</code> (integer, default: 20) - Number of runs to include in history</li>
+                    </ul>
+                </div>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl "http://localhost:5000/api/tag/smoke/history?limit=20"</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/tag/{tag}/export</code>
+                </div>
+                <p>Export tag analysis data as CSV file.</p>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl http://localhost:5000/api/tag/smoke/export -o smoke_tests.csv</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-success">GET</span>
+                    <code>/api/suite-stats</code>
+                </div>
+                <p>Get statistics for all test suites from the latest run.</p>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl http://localhost:5000/api/suite-stats</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/api/suite-stats', 'GET', 'suite-stats')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-suite-stats"></div>
+            </div>
+        </div>
+
+        <!-- Data Management -->
+        <div class="section">
+            <h3>🗃️ Data Management</h3>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-warning">POST</span>
+                    <code>/api/parse</code>
+                </div>
+                <p>Force parsing of output.xml to generate new metrics.</p>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl -X POST http://localhost:5000/api/parse</pre>
+                    <button class="btn btn-sm" onclick="tryEndpoint('/api/parse', 'POST', 'parse')">🚀 Try it</button>
+                </div>
+                <div class="response-box" id="response-parse"></div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="badge badge-danger">POST</span>
+                    <code>/api/clear</code>
+                </div>
+                <p>⚠️ Clear all historical metrics data (cannot be undone).</p>
+                <div class="code-example">
+                    <strong>Example:</strong>
+                    <pre>curl -X POST http://localhost:5000/api/clear</pre>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <style>
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #1f2937;
+        }
+
+        .page-header p {
+            color: #6b7280;
+            font-size: 1.1em;
+        }
+
+        .endpoint {
+            background: #f9fafb;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .endpoint-header code {
+            background: #1f2937;
+            color: #10b981;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 1em;
+            font-weight: 600;
+        }
+
+        .endpoint p {
+            color: #4b5563;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .params {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .params strong {
+            color: #374151;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .params ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .params li {
+            margin: 5px 0;
+            color: #6b7280;
+        }
+
+        .params code {
+            background: #e5e7eb;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+            color: #1f2937;
+        }
+
+        .code-example {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .code-example strong {
+            color: #374151;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .code-example pre {
+            background: #1f2937;
+            color: #10b981;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .response-box {
+            display: none;
+            background: #ecfdf5;
+            border: 1px solid #10b981;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        .response-box.show {
+            display: block;
+        }
+
+        .response-box pre {
+            background: #1f2937;
+            color: #10b981;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+        }
+
+        .response-box.error {
+            background: #fee2e2;
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+
+        .loading {
+            color: #6b7280;
+            font-style: italic;
+        }
+    </style>
+
+    <script>
+        async function tryEndpoint(endpoint, method, id) {
+            const responseBox = document.getElementById('response-' + id);
+            if (!responseBox) return;
+
+            responseBox.classList.add('show');
+            responseBox.classList.remove('error');
+            responseBox.innerHTML = '<p class="loading">⏳ Loading...</p>';
+
+            try {
+                const options = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+
+                const response = await fetch(endpoint, options);
+                const data = await response.json();
+
+                let html = '<strong>✅ Response (' + response.status + '):</strong>';
+                html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+
+                responseBox.innerHTML = html;
+            } catch (error) {
+                responseBox.classList.add('error');
+                responseBox.innerHTML = '<strong>❌ Error:</strong><p>' + error.message + '</p>';
+            }
+        }
+    </script>
+{% endblock %}
