@@ -71,6 +71,11 @@
             </div>
         </div>
 
+        <!-- Tag Details Section (hidden by default) -->
+        <div id="tag-details-section" class="section" style="display: none;">
+            <!-- Will be populated dynamically -->
+        </div>
+
         <!-- Flaky Tests Section -->
         <div class="section">
             <h3>⚠️ Flaky Tests (Unstable)</h3>
@@ -101,6 +106,8 @@
 {% block extra_scripts %}
     <script>
         let charts = {};
+        let currentFilter = null;
+        let currentTagFilter = null;
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -131,7 +138,6 @@
             if (data.latest_run) {
                 document.getElementById('pass-rate').textContent = data.latest_run.pass_rate + '%';
 
-                // Load full run data for more stats
                 const runResponse = await fetch(`/api/runs/${data.latest_run.run_id}`);
                 const runData = await runResponse.json();
 
@@ -144,20 +150,14 @@
             const response = await fetch('/api/trends?limit=20');
             const data = await response.json();
 
-            // Pass Rate Chart
             createPassRateChart(data);
-
-            // Duration Chart
             createDurationChart(data);
-
-            // Results Distribution Chart
             createResultsChart(data);
         }
 
         async function loadTagStats() {
             const response = await fetch('/api/tag-stats');
             const data = await response.json();
-
             createTagsChart(data.tags);
         }
 
@@ -193,9 +193,7 @@
                         }
                     },
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
                                 afterLabel: function() {
@@ -246,16 +244,7 @@
                         }
                     },
                     plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                afterLabel: function() {
-                                    return 'Click to view details';
-                                }
-                            }
-                        }
+                        legend: { display: false }
                     },
                     onHover: (event, chartElement) => {
                         event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
@@ -275,17 +264,44 @@
             const ctx = document.getElementById('resultsChart');
             if (charts.results) charts.results.destroy();
 
-            // Get latest run data
-            const latestPassed = data.passed[data.passed.length - 1] || 0;
-            const latestFailed = data.failed[data.failed.length - 1] || 0;
+            // Aggregate ALL tests from ALL runs including skipped
+            let totalPassed = 0;
+            let totalFailed = 0;
+            let totalSkipped = 0;
+
+            data.passed.forEach(p => totalPassed += p);
+            data.failed.forEach(f => totalFailed += f);
+
+            // Calculate skipped (total - passed - failed)
+            data.totals.forEach((total, index) => {
+                const skipped = total - data.passed[index] - data.failed[index];
+                if (skipped > 0) totalSkipped += skipped;
+            });
+
+            // Build chart data dynamically
+            const chartData = {
+                labels: ['Passed', 'Failed'],
+                data: [totalPassed, totalFailed],
+                colors: ['#10b981', '#ef4444']
+            };
+
+            // Add skipped if exists
+            if (totalSkipped > 0) {
+                chartData.labels.push('Skipped');
+                chartData.data.push(totalSkipped);
+                chartData.colors.push('#f59e0b'); // Orange
+            }
 
             charts.results = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Passed', 'Failed'],
+                    labels: chartData.labels,
                     datasets: [{
-                        data: [latestPassed, latestFailed],
-                        backgroundColor: ['#10b981', '#ef4444'],
+                        data: chartData.data,
+                        backgroundColor: chartData.colors,
+                        borderWidth: 3,
+                        borderColor: '#fff',
+                        hoverOffset: 10
                     }]
                 },
                 options: {
@@ -293,12 +309,37 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            position: 'bottom'
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                },
+                                padding: 15,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
                         },
                         tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
                             callbacks: {
-                                afterLabel: function() {
-                                    return 'Click to filter';
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = totalPassed + totalFailed + totalSkipped;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} tests (${percentage}%)`;
+                                },
+                                afterLabel: function(context) {
+                                    return '\n💡 Click to filter by this status';
                                 }
                             }
                         }
@@ -309,8 +350,16 @@
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const index = elements[0].index;
-                            const status = index === 0 ? 'PASS' : 'FAIL';
-                            filterByStatus(status);
+                            const label = chartData.labels[index].toUpperCase();
+
+                            // Map label to status
+                            if (label === 'PASSED') {
+                                filterByStatus('PASS');
+                            } else if (label === 'FAILED') {
+                                filterByStatus('FAIL');
+                            } else if (label === 'SKIPPED') {
+                                filterByStatus('SKIP');
+                            }
                         }
                     }
                 }
@@ -347,12 +396,27 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: {
-                            stacked: true,
-                        },
-                        y: {
-                            stacked: true,
-                            beginAtZero: true
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function() {
+                                    return 'Click to view tag details';
+                                }
+                            }
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const tagName = tags[index].name;
+                            // Navigate to dedicated tag analysis page
+                            window.location.href = `/tag/${tagName}`;
                         }
                     }
                 }
@@ -374,65 +438,90 @@
 
             data.tests.forEach(test => {
                 html += `
-            <tr>
-                <td>${escapeHtml(test.name)}</td>
-                <td><span class="badge badge-warning">${test.fail_rate}%</span></td>
-                <td><span class="badge badge-success">${test.passed}</span></td>
-                <td><span class="badge badge-danger">${test.failed}</span></td>
-                <td>${test.total}</td>
-            </tr>
-        `;
+                    <tr>
+                        <td>${escapeHtml(test.name)}</td>
+                        <td><span class="badge badge-warning">${test.fail_rate}%</span></td>
+                        <td><span class="badge badge-success">${test.passed}</span></td>
+                        <td><span class="badge badge-danger">${test.failed}</span></td>
+                        <td>${test.total}</td>
+                    </tr>
+                `;
             });
 
             html += '</tbody></table>';
             container.innerHTML = html;
         }
 
-        async function loadSlowestTests() {
+        async function loadSlowestTests(statusFilter = null) {
             const response = await fetch('/api/slowest-tests');
             const data = await response.json();
 
             const container = document.getElementById('slowest-tests');
 
-            if (data.tests.length === 0) {
-                container.innerHTML = '<p class="no-data">No test data available</p>';
+            let tests = data.tests;
+
+            if (statusFilter) {
+                tests = tests.filter(test => test.status === statusFilter);
+            }
+
+            if (tests.length === 0) {
+                container.innerHTML = '<p class="no-data">No tests match the filter criteria.</p>';
                 return;
             }
 
             let html = '<table><thead><tr><th>Test Name</th><th>Duration</th><th>Status</th><th>Tags</th></tr></thead><tbody>';
 
-            data.tests.forEach(test => {
+            tests.forEach(test => {
                 const statusClass = test.status === 'PASS' ? 'badge-success' : 'badge-danger';
                 html += `
-            <tr>
-                <td>${escapeHtml(test.name)}</td>
-                <td>${formatDuration(test.duration)}</td>
-                <td><span class="badge ${statusClass}">${test.status}</span></td>
-                <td>${test.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
-            </tr>
-        `;
+                    <tr>
+                        <td>${escapeHtml(test.name)}</td>
+                        <td>${formatDuration(test.duration)}</td>
+                        <td><span class="badge ${statusClass}">${test.status}</span></td>
+                        <td>${test.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
+                    </tr>
+                `;
             });
 
             html += '</tbody></table>';
             container.innerHTML = html;
         }
 
-        async function loadRecentRuns() {
+        async function loadRecentRuns(statusFilter = null) {
             const response = await fetch('/api/runs?limit=10');
             const data = await response.json();
 
             const container = document.getElementById('recent-runs');
 
-            if (data.runs.length === 0) {
-                container.innerHTML = '<p class="no-data">No runs available. Run tests first!</p>';
+            let runs = data.runs;
+
+            // Apply filter
+            if (statusFilter === 'PASS') {
+                runs = runs.filter(run => run.summary.pass_rate === 100);
+            } else if (statusFilter === 'FAIL') {
+                runs = runs.filter(run => run.summary.failed > 0);
+            } else if (statusFilter === 'SKIP') {
+                // Filter runs that have skipped tests
+                runs = runs.filter(run => {
+                    const total = run.summary.total;
+                    const passed = run.summary.passed;
+                    const failed = run.summary.failed;
+                    const skipped = total - passed - failed;
+                    return skipped > 0;
+                });
+            }
+
+            if (runs.length === 0) {
+                container.innerHTML = `<p class="no-data">No runs match the filter criteria.</p>`;
                 return;
             }
 
             let html = '<table><thead><tr><th>Run ID</th><th>Timestamp</th><th>Suite</th><th>Duration</th><th>Pass Rate</th><th>Tests</th><th>Actions</th></tr></thead><tbody>';
 
-            data.runs.forEach(run => {
+            runs.forEach(run => {
                 const passRateClass = run.summary.pass_rate >= 80 ? 'badge-success' :
                     run.summary.pass_rate >= 50 ? 'badge-warning' : 'badge-danger';
+
                 html += `
             <tr>
                 <td><code>${run.run_id}</code></td>
@@ -472,136 +561,158 @@
             loadDashboardData();
         }
 
-        // Filter functions for Test Results Distribution chart
-        let currentFilter = null;
-
+        // Filter functions
         async function filterByStatus(status) {
             currentFilter = status;
+            currentTagFilter = null;
 
-            // Show filter indicator
-            showFilterIndicator(status);
+            showFilterIndicator(status, 'status');
+            hideTagDetails();
 
-            // Reload filtered data
             await loadRecentRuns(status);
             await loadSlowestTests(status);
 
-            // Scroll to results
             document.getElementById('recent-runs').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        function showFilterIndicator(status) {
-            // Remove old indicator
+        async function filterByTag(tagName) {
+            currentTagFilter = tagName;
+            currentFilter = null;
+
+            showFilterIndicator(tagName, 'tag');
+
+            await loadTagDetails(tagName);
+            await loadRecentRuns();
+
+            document.getElementById('tag-details-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showFilterIndicator(value, type) {
             const oldIndicator = document.querySelector('.filter-indicator');
             if (oldIndicator) oldIndicator.remove();
 
-            // Add new indicator
             const indicator = document.createElement('div');
             indicator.className = 'filter-indicator';
             indicator.style.cssText = 'position: fixed; top: 80px; right: 20px; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; display: flex; gap: 10px; align-items: center;';
 
-            const statusColor = status === 'PASS' ? '#10b981' : '#ef4444';
-            indicator.innerHTML = `
-                <span style="background: ${statusColor}; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>
-                <span>Filtered by: <strong>${status === 'PASS' ? 'Passed' : 'Failed'}</strong></span>
-                <button onclick="clearFilter()" style="background: white; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕ Clear</button>
-            `;
+            if (type === 'status') {
+                let statusColor = '#10b981'; // Default green for PASS
+                let statusText = 'Passed';
+
+                if (value === 'FAIL') {
+                    statusColor = '#ef4444';
+                    statusText = 'Failed';
+                } else if (value === 'SKIP') {
+                    statusColor = '#f59e0b';
+                    statusText = 'Skipped';
+                }
+
+                indicator.innerHTML = `
+            <span style="background: ${statusColor}; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>
+            <span>Filtered by: <strong>${statusText}</strong></span>
+            <button onclick="clearFilter()" style="background: white; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕ Clear</button>
+        `;
+            } else if (type === 'tag') {
+                indicator.innerHTML = `
+            <span style="background: #f59e0b; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>
+            <span>Tag: <strong>${value}</strong></span>
+            <button onclick="clearFilter()" style="background: white; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕ Clear</button>
+        `;
+            }
 
             document.body.appendChild(indicator);
         }
 
         function clearFilter() {
             currentFilter = null;
+            currentTagFilter = null;
 
-            // Remove indicator
             const indicator = document.querySelector('.filter-indicator');
             if (indicator) indicator.remove();
 
-            // Reload all data
+            hideTagDetails();
             loadRecentRuns();
             loadSlowestTests();
         }
 
-        async function loadRecentRuns(statusFilter = null) {
-            const response = await fetch('/api/runs?limit=10');
-            const data = await response.json();
+        async function loadTagDetails(tagName) {
+            try {
+                const response = await fetch(`/api/tag/${tagName}`);
+                const data = await response.json();
 
-            const container = document.getElementById('recent-runs');
+                let section = document.getElementById('tag-details-section');
+                section.style.display = 'block';
 
-            let runs = data.runs;
+                const passRate = data.pass_rate.toFixed(2);
+                const passRateClass = passRate >= 80 ? 'success' : passRate >= 50 ? 'warning' : 'danger';
+                const totalDuration = data.tests.reduce((sum, t) => sum + t.duration, 0) / 1000;
 
-            // Apply filter
-            if (statusFilter === 'PASS') {
-                runs = runs.filter(run => run.summary.pass_rate === 100);
-            } else if (statusFilter === 'FAIL') {
-                runs = runs.filter(run => run.summary.failed > 0);
+                let html = `
+                    <h3>🏷️ Tag Details: <span class="tag">${escapeHtml(tagName)}</span></h3>
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
+                        <div class="stat-card">
+                            <div class="stat-icon">🧪</div>
+                            <div class="stat-content">
+                                <h3>${data.test_count}</h3>
+                                <p>Total Tests</p>
+                            </div>
+                        </div>
+                        <div class="stat-card ${passRateClass}">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-content">
+                                <h3>${passRate}%</h3>
+                                <p>Pass Rate</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⏱️</div>
+                            <div class="stat-content">
+                                <h3>${totalDuration.toFixed(2)}s</h3>
+                                <p>Total Duration</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Test Name</th>
+                                    <th>Status</th>
+                                    <th>Duration</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                data.tests.forEach(test => {
+                    const statusClass = test.status === 'PASS' ? 'badge-success' : 'badge-danger';
+                    const duration = (test.duration / 1000).toFixed(2);
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(test.name)}</td>
+                            <td><span class="badge ${statusClass}">${test.status}</span></td>
+                            <td>${duration}s</td>
+                            <td class="test-message">${escapeHtml(test.message || '-')}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table></div>';
+                section.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading tag details:', error);
             }
-
-            if (runs.length === 0) {
-                container.innerHTML = `<p class="no-data">No runs match the filter criteria.</p>`;
-                return;
-            }
-
-            let html = '<table><thead><tr><th>Run ID</th><th>Timestamp</th><th>Suite</th><th>Duration</th><th>Pass Rate</th><th>Tests</th><th>Actions</th></tr></thead><tbody>';
-
-            runs.forEach(run => {
-                const passRateClass = run.summary.pass_rate >= 80 ? 'badge-success' :
-                    run.summary.pass_rate >= 50 ? 'badge-warning' : 'badge-danger';
-                html += `
-            <tr>
-                <td><code>${run.run_id}</code></td>
-                <td>${formatTimestamp(run.timestamp)}</td>
-                <td>${escapeHtml(run.suite_name)}</td>
-                <td>${formatDuration(run.duration)}</td>
-                <td><span class="badge ${passRateClass}">${run.summary.pass_rate}%</span></td>
-                <td>${run.summary.passed}/${run.summary.total}</td>
-                <td>
-                    <a href="/run/${run.run_id}" class="btn btn-sm">View Details</a>
-                </td>
-            </tr>
-        `;
-            });
-
-            html += '</tbody></table>';
-            container.innerHTML = html;
         }
 
-        async function loadSlowestTests(statusFilter = null) {
-            const response = await fetch('/api/slowest-tests');
-            const data = await response.json();
-
-            const container = document.getElementById('slowest-tests');
-
-            let tests = data.tests;
-
-            // Apply filter
-            if (statusFilter) {
-                tests = tests.filter(test => test.status === statusFilter);
+        function hideTagDetails() {
+            const section = document.getElementById('tag-details-section');
+            if (section) {
+                section.style.display = 'none';
             }
-
-            if (tests.length === 0) {
-                container.innerHTML = '<p class="no-data">No tests match the filter criteria.</p>';
-                return;
-            }
-
-            let html = '<table><thead><tr><th>Test Name</th><th>Duration</th><th>Status</th><th>Tags</th></tr></thead><tbody>';
-
-            tests.forEach(test => {
-                const statusClass = test.status === 'PASS' ? 'badge-success' : 'badge-danger';
-                html += `
-            <tr>
-                <td>${escapeHtml(test.name)}</td>
-                <td>${formatDuration(test.duration)}</td>
-                <td><span class="badge ${statusClass}">${test.status}</span></td>
-                <td>${test.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
-            </tr>
-        `;
-            });
-
-            html += '</tbody></table>';
-            container.innerHTML = html;
         }
 
-        // NEW: Clear History function
         async function clearHistory() {
             if (!confirm('⚠️ Are you sure you want to delete ALL historical data?\n\nThis action cannot be undone!')) {
                 return;
@@ -610,16 +721,13 @@
             try {
                 const response = await fetch('/api/clear', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
                     alert('✅ History cleared successfully!');
-                    // Force hard reload with cache busting
                     window.location.href = window.location.pathname + '?t=' + Date.now();
                 } else {
                     alert('❌ Error: ' + data.error);
@@ -633,12 +741,8 @@
             if (!timestamp) return '-';
 
             try {
-                // Parse ISO timestamp правилно
                 const date = new Date(timestamp);
-
-                if (isNaN(date.getTime())) {
-                    return timestamp;
-                }
+                if (isNaN(date.getTime())) return timestamp;
 
                 return date.toLocaleString('bg-BG', {
                     day: '2-digit',

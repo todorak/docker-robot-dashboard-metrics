@@ -28,11 +28,34 @@ Simple Web Test
     Capture Page Screenshot
     Close Browser
 
+
+Deep Web Test
+    [Documentation]    Basic web test example
+    [Tags]    smoke    web    deep
+    Open Browser                         ${URL}     ${BROWSER}  options=${options}    alias=MAIN
+    Set Log Level                       TRACE
+    Wait Until Page Contains    Example Domain    timeout=${TIMEOUT}
+    Page Should Contain    Example Domain
+    Wait And Click Element          //a
+    Wait And Click Element          //a[contains(text(), 'RFC 2606')]
+    Capture Page Screenshot
+    Close Browser
+
 API Test Placeholder
     [Documentation]    API test example
     [Tags]    smoke    api
     Log    This is a placeholder for API tests
     Should Be Equal As Strings    OK    OK
+
+Skipped Test With Skip Keyword
+    [Tags]    smoke
+    Skip    This feature is not ready yet
+    Log    This never executes
+
+Skipped Test With Skip If
+    [Tags]    smoke
+    Skip If    True    Temporarily disabled
+    Log    This never executes
 
 Math Test
     [Documentation]    Simple calculation test
@@ -50,7 +73,7 @@ String Test
 
 Slow Test Example
     [Documentation]    Test that takes some time
-    [Tags]    slow
+    [Tags]    smoke slow
     Log    Starting slow test...
     Sleep    2s
     Log    Slow test completed
@@ -73,7 +96,7 @@ Loop Test Example
 
 Failing Test Example
     [Documentation]    This test will fail intentionally
-    [Tags]    fail    demo
+    [Tags]    smoke fail    demo
     Log    This test demonstrates a failure
     Should Be Equal    1    2    This will always fail
 

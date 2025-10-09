@@ -6,9 +6,17 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
-from flask import Flask, render_template, jsonify, send_from_directory, request
+from flask import Flask, render_template, jsonify, send_from_directory, request, Response
 
 from metrics_parser import MetricsParser
+import logging
+
+# Setup logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Flask setup
 app = Flask(__name__)
@@ -21,6 +29,30 @@ HISTORY_DIR = os.path.join(METRICS_DATA_DIR, 'history')
 
 # Initialize parser
 parser = MetricsParser(ROBOT_RESULTS_DIR, HISTORY_DIR)
+
+# ============================================================================
+# LOGGING SETUP
+# ============================================================================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def get_all_runs():
+    """Get all runs using parser"""
+    return parser.get_all_runs()
+
+
+def load_run_data(run_id):
+    """Load specific run data using parser"""
+    return parser.get_run_by_id(run_id)
 
 
 # ============================================================================
@@ -112,6 +144,7 @@ def serve_robot_files(filename):
         except:
             return "File not found", 404
     return "Not allowed", 403
+
 
 # ============================================================================
 # API ROUTES
@@ -431,6 +464,220 @@ def api_tag_details(tag):
 def screenshot(filename):
     """Serve screenshot files"""
     return send_from_directory(ROBOT_RESULTS_DIR, filename)
+
+
+@app.route('/tag/<tag_name>')
+def tag_analysis(tag_name):
+    """Detailed tag analysis page"""
+    try:
+        data = get_tag_analysis(tag_name)
+        return render_template('tag_analysis.html',
+                               tag=tag_name,
+                               data=data)
+    except Exception as e:
+        logger.error(f"Error loading tag analysis: {e}")
+        return render_template('error.html', error=str(e)), 500
+
+
+@app.route('/api/tag/<tag_name>/history')
+def tag_history_api(tag_name):
+    """Get tag performance history across runs"""
+    try:
+        limit = request.args.get('limit', 20, type=int)
+        data = get_tag_history(tag_name, limit)
+        return jsonify(data)
+    except Exception as e:
+        logger.error(f"Error getting tag history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/tag/<tag_name>/tests')
+def tag_tests_api(tag_name):
+    """Get individual test performance for this tag"""
+    try:
+        data = get_tag_test_performance(tag_name)
+        return jsonify(data)
+    except Exception as e:
+        logger.error(f"Error getting tag tests: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/tag/<tag_name>/export')
+def export_tag_data(tag_name):
+    """Export tag data as CSV"""
+    try:
+        import csv
+        from io import StringIO
+
+        data = get_tag_analysis(tag_name)
+
+        output = StringIO()
+        writer = csv.writer(output)
+
+        # Headers
+        writer.writerow(['Test Name', 'Total Runs', 'Passed', 'Failed', 'Pass Rate %', 'Avg Duration (s)'])
+
+        # Data
+        for test in data['tests']:
+            writer.writerow([
+                test['name'],
+                test['total_runs'],
+                test['passed'],
+                test['failed'],
+                f"{test['pass_rate']:.2f}",
+                f"{test['avg_duration']:.2f}"
+            ])
+
+        output.seek(0)
+
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=tag_{tag_name}_analysis.csv'}
+        )
+    except Exception as e:
+        logger.error(f"Error exporting tag data: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def get_tag_analysis(tag_name):
+    """Get comprehensive tag analysis"""
+    runs = get_all_runs()
+
+    # Find all runs containing this tag
+    tag_runs = []
+    all_tests = {}
+
+    for run in runs:
+        run_data = load_run_data(run['run_id'])
+        if not run_data:
+            continue
+
+        # Check if this run has tests with the tag
+        tests_with_tag = [t for t in run_data.get('tests', [])
+                          if tag_name in t.get('tags', [])]
+
+        if tests_with_tag:
+            passed = sum(1 for t in tests_with_tag if t['status'] == 'PASS')
+            failed = sum(1 for t in tests_with_tag if t['status'] == 'FAIL')
+            total = len(tests_with_tag)
+            pass_rate = (passed / total * 100) if total > 0 else 0
+
+            tag_runs.append({
+                'run_id': run['run_id'],
+                'timestamp': run['timestamp'],
+                'suite_name': run_data.get('suite_name', 'Unknown'),
+                'total': total,
+                'passed': passed,
+                'failed': failed,
+                'pass_rate': round(pass_rate, 2),
+                'duration': sum(t.get('duration', 0) for t in tests_with_tag) / 1000
+            })
+
+            # Track individual test performance
+            for test in tests_with_tag:
+                test_name = test['name']
+                if test_name not in all_tests:
+                    all_tests[test_name] = {
+                        'name': test_name,
+                        'total_runs': 0,
+                        'passed': 0,
+                        'failed': 0,
+                        'durations': [],
+                        'last_failed_run': None,
+                        'last_status': None
+                    }
+
+                all_tests[test_name]['total_runs'] += 1
+                all_tests[test_name]['durations'].append(test.get('duration', 0) / 1000)
+                all_tests[test_name]['last_status'] = test['status']
+
+                if test['status'] == 'PASS':
+                    all_tests[test_name]['passed'] += 1
+                else:
+                    all_tests[test_name]['failed'] += 1
+                    all_tests[test_name]['last_failed_run'] = run['run_id']
+
+    # Calculate test statistics
+    test_stats = []
+    for test_name, stats in all_tests.items():
+        pass_rate = (stats['passed'] / stats['total_runs'] * 100) if stats['total_runs'] > 0 else 0
+        avg_duration = sum(stats['durations']) / len(stats['durations']) if stats['durations'] else 0
+
+        test_stats.append({
+            'name': test_name,
+            'total_runs': stats['total_runs'],
+            'passed': stats['passed'],
+            'failed': stats['failed'],
+            'pass_rate': round(pass_rate, 2),
+            'avg_duration': round(avg_duration, 2),
+            'last_failed_run': stats['last_failed_run'],
+            'last_status': stats['last_status'],
+            'is_flaky': 0 < stats['failed'] < stats['total_runs']  # Failed sometimes but not always
+        })
+
+    # Sort by pass rate (unstable first)
+    test_stats.sort(key=lambda x: (x['pass_rate'], -x['total_runs']))
+
+    # Overall statistics
+    total_test_count = len(all_tests)
+    total_executions = sum(r['total'] for r in tag_runs)
+    total_passed = sum(r['passed'] for r in tag_runs)
+    total_failed = sum(r['failed'] for r in tag_runs)
+    overall_pass_rate = (total_passed / total_executions * 100) if total_executions > 0 else 0
+
+    return {
+        'tag_name': tag_name,
+        'total_runs': len(tag_runs),
+        'total_test_count': total_test_count,
+        'total_executions': total_executions,
+        'overall_pass_rate': round(overall_pass_rate, 2),
+        'runs': sorted(tag_runs, key=lambda x: x['timestamp'], reverse=True),
+        'tests': test_stats,
+        'flaky_count': sum(1 for t in test_stats if t['is_flaky'])
+    }
+
+
+def get_tag_history(tag_name, limit=20):
+    """Get tag pass rate history"""
+    runs = get_all_runs()[:limit]
+
+    history = {
+        'timestamps': [],
+        'pass_rates': [],
+        'test_counts': [],
+        'run_ids': []
+    }
+
+    for run in runs:
+        run_data = load_run_data(run['run_id'])
+        if not run_data:
+            continue
+
+        tests_with_tag = [t for t in run_data.get('tests', [])
+                          if tag_name in t.get('tags', [])]
+
+        if tests_with_tag:
+            passed = sum(1 for t in tests_with_tag if t['status'] == 'PASS')
+            total = len(tests_with_tag)
+            pass_rate = (passed / total * 100) if total > 0 else 0
+
+            history['timestamps'].append(run['timestamp'])
+            history['pass_rates'].append(round(pass_rate, 2))
+            history['test_counts'].append(total)
+            history['run_ids'].append(run['run_id'])
+
+    return history
+
+
+def get_tag_test_performance(tag_name):
+    """Get detailed test performance for tag"""
+    data = get_tag_analysis(tag_name)
+    return {
+        'tests': data['tests'],
+        'total_count': len(data['tests']),
+        'flaky_count': data['flaky_count']
+    }
 
 
 # ============================================================================
