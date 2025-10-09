@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  robot:
+    image: ${PROJECT_NAME}_robot:${ROBOT_ARCH}_latest
+    platform: linux/${ROBOT_ARCH}
+    build:
+      context: .
+      dockerfile: ./robot/Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    container_name: ${PROJECT_NAME}_robot_${ROBOT_ARCH}
+    shm_size: '2gb'
+    ports:
+      - "${ROBOT_PORT:-7778}:7778"
+    env_file:
+      - ./config/robot/.env
+    environment:
+      - TZ=${TZ:-Europe/Sofia}
+      - ODOO_HOST=${ODOO_HOST:-odoo}
+      - PROCESSES=${PROCESSES:-6}
+      - PROJECT_NAME=${PROJECT_NAME}
+      - METRICS_HOST=metrics
+      - METRICS_PORT=5000
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ./data/robot/results:/robot_results
+      - ./data/robot/logs:/robot_logs
+      - ./robot:/robot_src:ro
+      - ./config/robot:/config:ro
+    networks:
+      - robot_network
+    depends_on:
+      - metrics
+    command: ["${TEST_TAG:-Smoke}"]
+
+  metrics:
+    image: ${PROJECT_NAME}_metrics:latest
+    build:
+      context: .
+      dockerfile: ./metrics-dashboard/Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    container_name: ${PROJECT_NAME}_metrics
+    environment:
+      - TZ=${TZ:-Europe/Sofia}
+      - METRICS_DATA_DIR=/app/data
+      - ROBOT_RESULTS_DIR=/robot_results
+      - FLASK_ENV=production
+    ports:
+      - "${METRICS_PORT:-5000}:5000"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ./data/robot/results:/robot_results:ro
+      - ./data/metrics/history:/app/data/history
+    networks:
+      - robot_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  robot_network:
+    driver: bridge

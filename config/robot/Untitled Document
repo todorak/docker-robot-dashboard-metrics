@@ -1,0 +1,31 @@
+# Robot Framework Configuration
+BROWSER=headlesschrome
+PROCESSES=6
+TIMEOUT=30
+SCREENSHOT_ON_FAILURE=true
+
+# Odoo Connection
+ODOO_HOST=odoo
+ODOO_PORT=8069
+ODOO_DATABASE=test_db
+ODOO_USER=admin
+ODOO_PASSWORD=admin
+
+# Browser Settings
+CHROME_OPTIONS=--headless --no-sandbox --disable-dev-shm-usage --disable-gpu
+SELENIUM_TIMEOUT=10
+IMPLICIT_WAIT=5
+
+# Robot Framework Options
+LOGLEVEL=INFO
+OUTPUT_DIR=/robot_results
+LOG_FILE=log.html
+REPORT_FILE=report.html
+OUTPUT_FILE=output.xml
+
+# Parallel Execution
+PABOT_OPTIONS=--processes 6 --verbose
+
+# Debug
+DEBUG_MODE=false
+VERBOSE_LOGGING=false
