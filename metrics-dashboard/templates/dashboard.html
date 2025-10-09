@@ -50,24 +50,24 @@
         <!-- Charts Section -->
         <div class="charts-section">
             <div class="chart-container">
-                <h3>🧪 Test Results Distribution</h3>
-                <canvas id="resultsChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3>🏷️ Tests by Tag</h3>
-                <canvas id="tagsChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Test Results Breakdown -->
-        <div class="charts-section">
-            <div class="chart-container">
                 <h3>📈 Pass Rate Trend</h3>
                 <canvas id="passRateChart"></canvas>
             </div>
             <div class="chart-container">
                 <h3>⏱️ Duration Trend</h3>
                 <canvas id="durationChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Test Results Breakdown -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>🧪 Test Results Distribution</h3>
+                <canvas id="resultsChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>🏷️ Tests by Tag</h3>
+                <canvas id="tagsChart"></canvas>
             </div>
         </div>
 
@@ -195,6 +195,23 @@
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function() {
+                                    return 'Click to view details';
+                                }
+                            }
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const runId = data.runs[index];
+                            window.location.href = `/run/${runId}`;
                         }
                     }
                 }
@@ -231,6 +248,23 @@
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function() {
+                                    return 'Click to view details';
+                                }
+                            }
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const runId = data.runs[index];
+                            window.location.href = `/run/${runId}`;
                         }
                     }
                 }
