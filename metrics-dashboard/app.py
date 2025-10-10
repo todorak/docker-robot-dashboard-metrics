@@ -6,7 +6,8 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
-from flask import Flask, render_template, jsonify, send_from_directory, request, Response
+from flask import Flask, render_template, jsonify, send_from_directory, request, Response, redirect
+import re
 
 from metrics_parser import MetricsParser
 import logging
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Flask setup
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
+app.url_map.strict_slashes = False
 
 # Directories
 METRICS_DATA_DIR = os.getenv('METRICS_DATA_DIR', '/app/data')
@@ -90,25 +92,208 @@ def serve_archived_file(run_id, filename):
 
 
 @app.route('/robot-report')
-def robot_report():
-    """Показва Robot Framework HTML report"""
-    report_path = Path(ROBOT_RESULTS_DIR) / 'report.html'
+@app.route('/robot-report/<run_id>')
+def robot_report(run_id=None):
+    runs = parser.get_all_runs()
+    if not runs:
+        return "No test runs found. Run tests first!", 404
 
+    # Ако няма run_id → покажи селектора
+    if not run_id:
+        return render_template('robot_report_selector.html',
+                               runs=runs[:20],
+                               selected_run_id=runs[0]['run_id'],
+                               report_type='report')
+
+    # Проверка за съществуващ run
+    if not any(r['run_id'] == run_id for r in runs):
+        return f"Run {run_id} not found", 404
+
+    report_path = Path(HISTORY_DIR) / run_id / 'report.html'
     if not report_path.exists():
-        return "Report not found. Run tests first!", 404
+        return f"Report not found for run {run_id}. HTML report may not have been archived.", 404
 
-    return send_from_directory(ROBOT_RESULTS_DIR, 'report.html')
+    try:
+        with open(report_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+
+        # Добави base tag (ако няма)
+        if '<base ' not in html.lower():
+            html = re.sub(r'(<head[^>]*>)', rf'\1<base href="/robot-report/{run_id}/">', html, flags=re.IGNORECASE)
+
+        # Пренапиши href атрибутите за log/report
+        html = re.sub(
+            r'href\s*=\s*["\'](?:\./|\.\./|/)?log\.html([^"\']*)["\']',
+            rf'href="/robot-log/{run_id}\1"',
+            html,
+            flags=re.IGNORECASE
+        )
+        html = re.sub(
+            r'href\s*=\s*["\'](?:\./|\.\./|/)?report\.html([^"\']*)["\']',
+            rf'href="/robot-report/{run_id}\1"',
+            html,
+            flags=re.IGNORECASE
+        )
+
+        # Пренапиши JS/onclick низове
+        html = re.sub(
+            r'(["\'])(?:\./|\.\./|/)?log\.html\1',
+            lambda m: m.group(1) + f'/robot-log/{run_id}' + m.group(1),
+            html,
+            flags=re.IGNORECASE
+        )
+        html = re.sub(
+            r'(["\'])(?:\./|\.\./|/)?report\.html\1',
+            lambda m: m.group(1) + f'/robot-report/{run_id}' + m.group(1),
+            html,
+            flags=re.IGNORECASE
+        )
+
+        # Премахваме trailing slash преди anchor #
+        html = re.sub(
+            rf'href="/robot-report/{run_id}/#',
+            rf'href="/robot-report/{run_id}#',
+            html
+        )
+        html = re.sub(
+            rf'href="/robot-log/{run_id}/#',
+            rf'href="/robot-log/{run_id}#',
+            html
+        )
+
+        return Response(html, mimetype='text/html')
+
+    except Exception as e:
+        return f"Error reading report: {str(e)}", 500
 
 
 @app.route('/robot-log')
-def robot_log():
-    """Показва Robot Framework HTML log"""
-    log_path = Path(ROBOT_RESULTS_DIR) / 'log.html'
+@app.route('/robot-log/<run_id>')
+def robot_log(run_id=None):
+    runs = parser.get_all_runs()
+    if not runs:
+        return "No test runs found. Run tests first!", 404
 
+    # Ако няма run_id → покажи селектора
+    if not run_id:
+        return render_template('robot_report_selector.html',
+                               runs=runs[:20],
+                               selected_run_id=runs[0]['run_id'],
+                               report_type='log')
+
+    # Проверка за съществуващ run
+    if not any(r['run_id'] == run_id for r in runs):
+        return f"Run {run_id} not found", 404
+
+    log_path = Path(HISTORY_DIR) / run_id / 'log.html'
     if not log_path.exists():
-        return "Log not found. Run tests first!", 404
+        return f"Log not found for run {run_id}. HTML log may not have been archived.", 404
 
-    return send_from_directory(ROBOT_RESULTS_DIR, 'log.html')
+    try:
+        with open(log_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+
+        # Добави base tag (ако няма)
+        if '<base ' not in html.lower():
+            html = re.sub(r'(<head[^>]*>)', rf'\1<base href="/robot-log/{run_id}/">', html, flags=re.IGNORECASE)
+
+        # Пренапиши href атрибутите за log/report
+        html = re.sub(
+            r'href\s*=\s*["\'](?:\./|\.\./|/)?log\.html([^"\']*)["\']',
+            rf'href="/robot-log/{run_id}\1"',
+            html,
+            flags=re.IGNORECASE
+        )
+        html = re.sub(
+            r'href\s*=\s*["\'](?:\./|\.\./|/)?report\.html([^"\']*)["\']',
+            rf'href="/robot-report/{run_id}\1"',
+            html,
+            flags=re.IGNORECASE
+        )
+
+        # JS/onclick низове
+        html = re.sub(
+            r'(["\'])(?:\./|\.\./|/)?log\.html\1',
+            lambda m: m.group(1) + f'/robot-log/{run_id}' + m.group(1),
+            html,
+            flags=re.IGNORECASE
+        )
+        html = re.sub(
+            r'(["\'])(?:\./|\.\./|/)?report\.html\1',
+            lambda m: m.group(1) + f'/robot-report/{run_id}' + m.group(1),
+            html,
+            flags=re.IGNORECASE
+        )
+
+        # Премахваме trailing slash преди anchor #
+        html = re.sub(
+            rf'href="/robot-report/{run_id}/#',
+            rf'href="/robot-report/{run_id}#',
+            html
+        )
+        html = re.sub(
+            rf'href="/robot-log/{run_id}/#',
+            rf'href="/robot-log/{run_id}#',
+            html
+        )
+
+        return Response(html, mimetype='text/html')
+
+    except Exception as e:
+        return f"Error reading log: {str(e)}", 500
+
+
+# Също добавя route за static files от robot reports
+# Route за serving static files от robot runs
+@app.route('/run/<run_id>/<filename>')
+def serve_run_file(run_id, filename):
+    """Serve CSS/JS/images files от robot run directory"""
+    run_dir = Path(HISTORY_DIR) / run_id
+
+    if not run_dir.exists():
+        return f"Run directory not found: {run_id}", 404
+
+    file_path = run_dir / filename
+    if not file_path.exists():
+        return f"File not found: {filename}", 404
+
+    # Security check - allow only safe file types
+    allowed_extensions = {'.html', '.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg'}
+    if not any(filename.endswith(ext) for ext in allowed_extensions):
+        return "File type not allowed", 403
+
+    return send_from_directory(str(run_dir), filename)
+
+
+@app.route('/robot-report/<run_id>/<path:filename>')
+def robot_report_file(run_id, filename):
+    """Serve files from robot report direcory"""
+    file_path = Path(HISTORY_DIR) / run_id / filename
+
+    if not file_path.exists():
+        if filename == 'report.html':
+            return redirect(f'/robot-report/{run_id}')
+        elif filename == 'log.html':
+            return redirect(f'/robot-log/{run_id}')
+        return f"File {filename} not found", 404
+
+    return send_from_directory(str(file_path.parent), filename)
+
+
+@app.route('/robot-log/<run_id>/<path:filename>')
+def robot_log_file(run_id, filename):
+    """Serve files from robot log directory"""
+    file_path = Path(HISTORY_DIR) / run_id / filename
+
+    if not file_path.exists():
+        # Ако файлът е report.html или log.html, redirect
+        if filename == 'report.html':
+            return redirect(f'/robot-report/{run_id}')
+        elif filename == 'log.html':
+            return redirect(f'/robot-log/{run_id}')
+        return f"File {filename} not found", 404
+
+    return send_from_directory(str(file_path.parent), filename)
 
 
 # FIXED: Serve log.html directly (за links от report.html)
@@ -150,6 +335,15 @@ def serve_robot_files(filename):
 def api_docs():
     """API Documentation page"""
     return render_template('api_docs.html')
+
+
+@app.route('/debug-runs')
+def debug_runs():
+    runs = parser.get_all_runs()
+    return jsonify({
+        'first_run': runs[0] if runs else None,
+        'first_run_keys': list(runs[0].keys()) if runs else []
+    })
 
 
 # ============================================================================

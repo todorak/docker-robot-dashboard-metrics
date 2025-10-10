@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Robot {{ report_type|title }} - Select Run{% endblock %}
+
+{% block content %}
+<div class="container">
+    
+    <!-- Header -->
+    <div class="page-header" style="margin-bottom: 30px;">
+        <h1>🤖 Robot Framework {{ report_type|title }}</h1>
+        <p>Select a test run to view the {{ report_type }}</p>
+    </div>
+    
+    <!-- Run Selector -->
+    <div class="section">
+        <h3>📋 Select Test Run</h3>
+        
+        <div style="margin: 20px 0;">
+            <label for="runSelector" style="display: block; margin-bottom: 10px; font-weight: 600; color: #374151;">
+                Choose run:
+            </label>
+            <select id="runSelector" onchange="loadReport()" style="width: 100%; max-width: 600px; padding: 12px; font-size: 1em; border: 2px solid #e5e7eb; border-radius: 8px; background: white;">
+                {% for run in runs %}
+                <option value="{{ run.run_id }}" {% if run.run_id == selected_run_id %}selected{% endif %}>
+                    {{ run.timestamp }} - {{ run.suite_name }} - 
+                    Pass Rate: {{ run.summary.pass_rate }}% 
+                    ({{ run.summary.passed }}/{{ run.summary.total }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <button onclick="loadReport()" class="btn btn-primary" style="margin-right: 10px;">
+                📄 Load {{ report_type|title }}
+            </button>
+            <a href="/" class="btn btn-secondary">← Back to Dashboard</a>
+        </div>
+    </div>
+    
+    <!-- Info Box -->
+    <div class="section" style="background: #f0f9ff; border-left: 4px solid #3b82f6;">
+        <h3>ℹ️ Information</h3>
+        <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+            <li>Select a test run from the dropdown above</li>
+            <li>Click "Load {{ report_type|title }}" to view the Robot Framework {{ report_type }}</li>
+            <li>The {{ report_type }} will open in the same tab</li>
+            <li>Use browser back button to return to this page</li>
+        </ul>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="section">
+        <h3>📊 Latest Run Summary</h3>
+        {% if runs %}
+        {% set latest = runs[0] %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px;">
+            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 2em; font-weight: bold; color: #3b82f6;">{{ latest.summary.total }}</div>
+                <div style="color: #6b7280; margin-top: 5px;">Total Tests</div>
+            </div>
+            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 2em; font-weight: bold; color: #10b981;">{{ latest.summary.passed }}</div>
+                <div style="color: #6b7280; margin-top: 5px;">Passed</div>
+            </div>
+            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 2em; font-weight: bold; color: #ef4444;">{{ latest.summary.failed }}</div>
+                <div style="color: #6b7280; margin-top: 5px;">Failed</div>
+            </div>
+            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 2em; font-weight: bold; color: {% if latest.summary.pass_rate >= 80 %}#10b981{% elif latest.summary.pass_rate >= 50 %}#f59e0b{% else %}#ef4444{% endif %}">
+                    {{ latest.summary.pass_rate }}%
+                </div>
+                <div style="color: #6b7280; margin-top: 5px;">Pass Rate</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+</div>
+
+<script>
+    function loadReport() {
+        const runId = document.getElementById('runSelector').value;
+        const reportType = '{{ report_type }}';
+        // Redirect to report/log page
+        window.location.href = `/robot-${reportType}/${runId}`;
+    }
+    
+    // Allow Enter key to load report
+    document.getElementById('runSelector').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loadReport();
+        }
+    });
+</script>
+{% endblock %}
