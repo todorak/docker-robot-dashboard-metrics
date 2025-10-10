@@ -1,0 +1,919 @@
+{% extends "base.html" %}
+
+{% block title %}API Documentation{% endblock %}
+
+{% block content %}
+<style>
+    /* ============================================ */
+    /* 🎨 API DOCS STYLES */
+    /* ============================================ */
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .api-docs-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .api-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 16px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    .api-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 2.5em;
+        font-weight: 800;
+    }
+
+    .api-header p {
+        margin: 0;
+        font-size: 1.1em;
+        opacity: 0.95;
+    }
+
+    .api-section {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border: 1px solid rgba(102, 126, 234, 0.1);
+        animation: fadeInUp 0.6s ease-out backwards;
+    }
+
+    .api-section:nth-child(2) { animation-delay: 0.1s; }
+    .api-section:nth-child(3) { animation-delay: 0.2s; }
+    .api-section:nth-child(4) { animation-delay: 0.3s; }
+    .api-section:nth-child(5) { animation-delay: 0.4s; }
+
+    .api-section h2 {
+        font-size: 1.8em;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #667eea;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .endpoint {
+        background: #f9fafb;
+        border-left: 4px solid #667eea;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .endpoint:hover {
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        transform: translateX(5px);
+    }
+
+    .endpoint-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+
+    .method-badge {
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.85em;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .method-get {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+
+    .method-post {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .method-delete {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+
+    .endpoint-path {
+        font-family: 'Courier New', monospace;
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #1f2937;
+        background: white;
+        padding: 8px 15px;
+        border-radius: 6px;
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .endpoint-description {
+        color: #6b7280;
+        margin-bottom: 15px;
+        line-height: 1.6;
+    }
+
+    .endpoint-details {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+
+    .detail-section {
+        margin-bottom: 15px;
+    }
+
+    .detail-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .detail-title {
+        font-weight: 700;
+        color: #667eea;
+        margin-bottom: 8px;
+        font-size: 0.95em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .code-block {
+        background: #1f2937;
+        color: #10b981;
+        padding: 15px;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+        overflow-x: auto;
+        position: relative;
+        margin-top: 8px;
+    }
+
+    .code-block pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .copy-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .copy-btn:hover {
+        background: #764ba2;
+        transform: scale(1.05);
+    }
+
+    .copy-btn.copied {
+        background: #10b981;
+    }
+
+    .try-it-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95em;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+    }
+
+    .try-it-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .response-container {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f0f9ff;
+        border-left: 4px solid #4facfe;
+        border-radius: 8px;
+        display: none;
+    }
+
+    .response-container.show {
+        display: block;
+        animation: fadeInUp 0.3s ease-out;
+    }
+
+    .params-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .params-table th,
+    .params-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .params-table th {
+        background: #f9fafb;
+        font-weight: 700;
+        color: #667eea;
+        font-size: 0.9em;
+        text-transform: uppercase;
+    }
+
+    .params-table code {
+        background: #667eea;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+
+    .base-url {
+        background: #f0f9ff;
+        border: 2px solid #4facfe;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        font-family: 'Courier New', monospace;
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .quick-links {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .quick-link {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .quick-link:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .loading {
+        color: #667eea;
+        font-style: italic;
+    }
+
+    .error {
+        color: #ef4444;
+        font-weight: 600;
+    }
+</style>
+
+<div class="api-docs-container">
+
+    <!-- Header -->
+    <div class="api-header">
+        <h1>📚 API Documentation</h1>
+        <p>Complete REST API reference for Robot Framework Metrics Dashboard</p>
+    </div>
+
+    <!-- Base URL -->
+    <div class="api-section">
+        <h2>🌐 Base URL</h2>
+        <div class="base-url">
+            http://localhost:5000
+        </div>
+        <p style="color: #6b7280; margin-top: 10px;">
+            All API endpoints are relative to this base URL. Replace with your actual server address in production.
+        </p>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="api-section">
+        <h2>⚡ Quick Access</h2>
+        <div class="quick-links">
+            <a href="/api/status" class="quick-link" target="_blank">📊 API Status</a>
+            <a href="/api/runs" class="quick-link" target="_blank">📋 All Runs</a>
+            <a href="/api/trends" class="quick-link" target="_blank">📈 Trends</a>
+            <a href="/api/tag-stats" class="quick-link" target="_blank">🏷️ Tag Stats</a>
+        </div>
+    </div>
+
+    <!-- General Endpoints -->
+    <div class="api-section">
+        <h2>🔧 General Endpoints</h2>
+
+        <!-- Health Check -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/health</span>
+            </div>
+            <div class="endpoint-description">
+                Health check endpoint to verify service availability.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Response Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>{
+  "status": "healthy",
+  "timestamp": "2025-10-10T00:00:00",
+  "service": "metrics-dashboard"
+}</pre>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-title">cURL Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl http://localhost:5000/health</pre>
+                    </div>
+                </div>
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/health', 'GET')">🚀 Try it out</button>
+            <div class="response-container" id="response-health"></div>
+        </div>
+
+        <!-- API Status -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/status</span>
+            </div>
+            <div class="endpoint-description">
+                Get overall API status with latest run information and statistics.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Response Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>{
+  "status": "operational",
+  "total_runs": 15,
+  "latest_run": {
+    "run_id": "abc123",
+    "timestamp": "2025-10-10T00:00:00",
+    "pass_rate": 87.5
+  },
+  "total_tests": 8,
+  "pass_rate": 87.5
+}</pre>
+                    </div>
+                </div>
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/api/status', 'GET')">🚀 Try it out</button>
+            <div class="response-container" id="response-status"></div>
+        </div>
+    </div>
+
+    <!-- Runs Endpoints -->
+    <div class="api-section">
+        <h2>📋 Test Runs</h2>
+
+        <!-- Get All Runs -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/runs</span>
+            </div>
+            <div class="endpoint-description">
+                Retrieve list of all test runs with summary information.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Query Parameters:</div>
+                    <table class="params-table">
+                        <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>limit</code></td>
+                            <td>integer</td>
+                            <td>50</td>
+                            <td>Maximum number of runs to return</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-title">cURL Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl "http://localhost:5000/api/runs?limit=10"</pre>
+                    </div>
+                </div>
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/api/runs?limit=10', 'GET')">🚀 Try it out</button>
+            <div class="response-container" id="response-runs"></div>
+        </div>
+
+        <!-- Get Run Details -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/runs/{run_id}</span>
+            </div>
+            <div class="endpoint-description">
+                Get detailed information about a specific test run including all test results.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Path Parameters:</div>
+                    <table class="params-table">
+                        <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>run_id</code></td>
+                            <td>string</td>
+                            <td>Unique identifier of the test run</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-title">cURL Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl http://localhost:5000/api/runs/abc123</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Run -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-delete">DELETE</span>
+                <span class="endpoint-path">/api/delete/{run_id}</span>
+            </div>
+            <div class="endpoint-description">
+                Delete a specific test run from history.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">cURL Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl -X DELETE http://localhost:5000/api/delete/abc123</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Endpoints -->
+    <div class="api-section">
+        <h2>📈 Analytics & Trends</h2>
+
+        <!-- Trends -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/trends</span>
+            </div>
+            <div class="endpoint-description">
+                Get trend data for charts showing pass rates and test counts over time.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Query Parameters:</div>
+                    <table class="params-table">
+                        <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>runs</code></td>
+                            <td>integer</td>
+                            <td>20</td>
+                            <td>Number of recent runs to include</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/api/trends?runs=20', 'GET')">🚀 Try it out</button>
+            <div class="response-container" id="response-trends"></div>
+        </div>
+
+        <!-- Flaky Tests -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/flaky-tests</span>
+            </div>
+            <div class="endpoint-description">
+                Identify unstable tests that fail intermittently.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Query Parameters:</div>
+                    <table class="params-table">
+                        <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>runs</code></td>
+                            <td>integer</td>
+                            <td>10</td>
+                            <td>Number of runs to analyze</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/api/flaky-tests?runs=10', 'GET')">🚀 Try it out</button>
+            <div class="response-container" id="response-flaky"></div>
+        </div>
+
+        <!-- Slowest Tests -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/slowest-tests</span>
+            </div>
+            <div class="endpoint-description">
+                Get the slowest running tests from latest or specific run.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Query Parameters:</div>
+                    <table class="params-table">
+                        <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>run_id</code></td>
+                            <td>string</td>
+                            <td>Optional: specific run to analyze (defaults to latest)</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/api/slowest-tests', 'GET')">🚀 Try it out</button>
+            <div class="response-container" id="response-slowest"></div>
+        </div>
+
+        <!-- Compare Runs -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/compare</span>
+            </div>
+            <div class="endpoint-description">
+                Compare two test runs side-by-side.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Query Parameters:</div>
+                    <table class="params-table">
+                        <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Required</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>run1</code></td>
+                            <td>string</td>
+                            <td>Yes</td>
+                            <td>First run ID to compare</td>
+                        </tr>
+                        <tr>
+                            <td><code>run2</code></td>
+                            <td>string</td>
+                            <td>Yes</td>
+                            <td>Second run ID to compare</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-title">cURL Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl "http://localhost:5000/api/compare?run1=abc123&run2=def456"</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tags & Suites -->
+    <div class="api-section">
+        <h2>🏷️ Tags & Test Organization</h2>
+
+        <!-- Tag Stats -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/tag-stats</span>
+            </div>
+            <div class="endpoint-description">
+                Get statistics for all tags from the latest test run.
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/api/tag-stats', 'GET')">🚀 Try it out</button>
+            <div class="response-container" id="response-tag-stats"></div>
+        </div>
+
+        <!-- Tag Details -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/tag/{tag}</span>
+            </div>
+            <div class="endpoint-description">
+                Get all tests with a specific tag from the latest run.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Path Parameters:</div>
+                    <table class="params-table">
+                        <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>tag</code></td>
+                            <td>string</td>
+                            <td>Tag name to filter by</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-title">cURL Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl http://localhost:5000/api/tag/smoke</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tag History -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/tag/{tag}/history</span>
+            </div>
+            <div class="endpoint-description">
+                Get performance history for a specific tag across multiple runs.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Query Parameters:</div>
+                    <table class="params-table">
+                        <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>limit</code></td>
+                            <td>integer</td>
+                            <td>20</td>
+                            <td>Number of runs to include in history</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tag Export -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/tag/{tag}/export</span>
+            </div>
+            <div class="endpoint-description">
+                Export tag analysis data as CSV file.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">Response:</div>
+                    <p style="color: #6b7280; margin-top: 5px;">Returns CSV file download with test performance data for the specified tag.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suite Stats -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-get">GET</span>
+                <span class="endpoint-path">/api/suite-stats</span>
+            </div>
+            <div class="endpoint-description">
+                Get statistics for all test suites from the latest run.
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/api/suite-stats', 'GET')">🚀 Try it out</button>
+            <div class="response-container" id="response-suite-stats"></div>
+        </div>
+    </div>
+
+    <!-- Data Management -->
+    <div class="api-section">
+        <h2>🗃️ Data Management</h2>
+
+        <!-- Parse Results -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/parse</span>
+            </div>
+            <div class="endpoint-description">
+                Force parsing of output.xml to generate new metrics.
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">cURL Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl -X POST http://localhost:5000/api/parse</pre>
+                    </div>
+                </div>
+            </div>
+            <button class="try-it-btn" onclick="tryEndpoint('/api/parse', 'POST')">🚀 Try it out</button>
+            <div class="response-container" id="response-parse"></div>
+        </div>
+
+        <!-- Clear History -->
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method-badge method-post">POST</span>
+                <span class="endpoint-path">/api/clear</span>
+            </div>
+            <div class="endpoint-description">
+                ⚠️ Clear all historical metrics data (cannot be undone).
+            </div>
+            <div class="endpoint-details">
+                <div class="detail-section">
+                    <div class="detail-title">cURL Example:</div>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl -X POST http://localhost:5000/api/clear</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function copyCode(button) {
+        const codeBlock = button.nextElementSibling;
+        const codeBlock = button.nextElementSibling;
+        const text = codeBlock.textContent.trim();
+
+        navigator.clipboard.writeText(text).then(() => {
+            const originalText = button.textContent;
+            button.textContent = '✓ Copied!';
+            button.classList.add('copied');
+
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('copied');
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy to clipboard');
+        });
+    }
+
+    async function tryEndpoint(endpoint, method) {
+        const responseId = 'response-' + endpoint.split('/').pop().split('?')[0];
+        const responseContainer = document.getElementById(responseId);
+
+        if (!responseContainer) {
+            alert('Response container not found');
+            return;
+        }
+
+        responseContainer.classList.add('show');
+        responseContainer.innerHTML = '<p class="loading">⏳ Loading...</p>';
+
+        try {
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            const response = await fetch(endpoint, options);
+            const data = await response.json();
+
+            let html = '<div class="detail-section">';
+            html += '<div class="detail-title">✅ Response (' + response.status + '):</div>';
+            html += '<div class="code-block">';
+            html += '<button class="copy-btn" onclick="copyCode(this)">Copy</button>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '</div>';
+            html += '</div>';
+
+            responseContainer.innerHTML = html;
+        } catch (error) {
+            responseContainer.innerHTML = '<p class="error">❌ Error: ' + error.message + '</p>';
+        }
+    }
+
+    // Auto-scroll to section from hash
+    window.addEventListener('load', function() {
+        if (window.location.hash) {
+            const element = document.querySelector(window.location.hash);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    });
+</script>
+{% endblock %}

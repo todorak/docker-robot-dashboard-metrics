@@ -47,18 +47,6 @@
             </div>
         </div>
 
-        <!-- Test Results Breakdown -->
-        <div class="charts-section">
-            <div class="chart-container">
-                <h3>🧪 Test Results Distribution</h3>
-                <canvas id="resultsChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3>🏷️ Tests by Tag</h3>
-                <canvas id="tagsChart"></canvas>
-            </div>
-        </div>
-
         <!-- Charts Section -->
         <div class="charts-section">
             <div class="chart-container">
@@ -68,6 +56,18 @@
             <div class="chart-container">
                 <h3>⏱️ Duration Trend</h3>
                 <canvas id="durationChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Test Results Breakdown -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>🧪 Test Results Distribution</h3>
+                <canvas id="resultsChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>🏷️ Tests by Tag</h3>
+                <canvas id="tagsChart"></canvas>
             </div>
         </div>
 
@@ -264,82 +264,27 @@
             const ctx = document.getElementById('resultsChart');
             if (charts.results) charts.results.destroy();
 
-            // Aggregate ALL tests from ALL runs including skipped
-            let totalPassed = 0;
-            let totalFailed = 0;
-            let totalSkipped = 0;
-
-            data.passed.forEach(p => totalPassed += p);
-            data.failed.forEach(f => totalFailed += f);
-
-            // Calculate skipped (total - passed - failed)
-            data.totals.forEach((total, index) => {
-                const skipped = total - data.passed[index] - data.failed[index];
-                if (skipped > 0) totalSkipped += skipped;
-            });
-
-            // Build chart data dynamically
-            const chartData = {
-                labels: ['Passed', 'Failed'],
-                data: [totalPassed, totalFailed],
-                colors: ['#10b981', '#ef4444']
-            };
-
-            // Add skipped if exists
-            if (totalSkipped > 0) {
-                chartData.labels.push('Skipped');
-                chartData.data.push(totalSkipped);
-                chartData.colors.push('#f59e0b'); // Orange
-            }
+            const latestPassed = data.passed[data.passed.length - 1] || 0;
+            const latestFailed = data.failed[data.failed.length - 1] || 0;
 
             charts.results = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: chartData.labels,
+                    labels: ['Passed', 'Failed'],
                     datasets: [{
-                        data: chartData.data,
-                        backgroundColor: chartData.colors,
-                        borderWidth: 3,
-                        borderColor: '#fff',
-                        hoverOffset: 10
+                        data: [latestPassed, latestFailed],
+                        backgroundColor: ['#10b981', '#ef4444'],
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                },
-                                padding: 15,
-                                usePointStyle: true,
-                                pointStyle: 'circle'
-                            }
-                        },
+                        legend: { position: 'bottom' },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12,
-                            titleFont: {
-                                size: 14,
-                                weight: 'bold'
-                            },
-                            bodyFont: {
-                                size: 13
-                            },
                             callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const total = totalPassed + totalFailed + totalSkipped;
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${label}: ${value} tests (${percentage}%)`;
-                                },
-                                afterLabel: function(context) {
-                                    return '\n💡 Click to filter by this status';
+                                afterLabel: function() {
+                                    return 'Click to filter';
                                 }
                             }
                         }
@@ -350,16 +295,8 @@
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const index = elements[0].index;
-                            const label = chartData.labels[index].toUpperCase();
-
-                            // Map label to status
-                            if (label === 'PASSED') {
-                                filterByStatus('PASS');
-                            } else if (label === 'FAILED') {
-                                filterByStatus('FAIL');
-                            } else if (label === 'SKIPPED') {
-                                filterByStatus('SKIP');
-                            }
+                            const status = index === 0 ? 'PASS' : 'FAIL';
+                            filterByStatus(status);
                         }
                     }
                 }
@@ -415,8 +352,7 @@
                         if (elements.length > 0) {
                             const index = elements[0].index;
                             const tagName = tags[index].name;
-                            // Navigate to dedicated tag analysis page
-                            window.location.href = `/tag/${tagName}`;
+                            filterByTag(tagName);
                         }
                     }
                 }
@@ -495,24 +431,14 @@
 
             let runs = data.runs;
 
-            // Apply filter
             if (statusFilter === 'PASS') {
                 runs = runs.filter(run => run.summary.pass_rate === 100);
             } else if (statusFilter === 'FAIL') {
                 runs = runs.filter(run => run.summary.failed > 0);
-            } else if (statusFilter === 'SKIP') {
-                // Filter runs that have skipped tests
-                runs = runs.filter(run => {
-                    const total = run.summary.total;
-                    const passed = run.summary.passed;
-                    const failed = run.summary.failed;
-                    const skipped = total - passed - failed;
-                    return skipped > 0;
-                });
             }
 
             if (runs.length === 0) {
-                container.innerHTML = `<p class="no-data">No runs match the filter criteria.</p>`;
+                container.innerHTML = '<p class="no-data">No runs match the filter criteria.</p>';
                 return;
             }
 
@@ -521,20 +447,19 @@
             runs.forEach(run => {
                 const passRateClass = run.summary.pass_rate >= 80 ? 'badge-success' :
                     run.summary.pass_rate >= 50 ? 'badge-warning' : 'badge-danger';
-
                 html += `
-            <tr>
-                <td><code>${run.run_id}</code></td>
-                <td>${formatTimestamp(run.timestamp)}</td>
-                <td>${escapeHtml(run.suite_name)}</td>
-                <td>${formatDuration(run.duration)}</td>
-                <td><span class="badge ${passRateClass}">${run.summary.pass_rate}%</span></td>
-                <td>${run.summary.passed}/${run.summary.total}</td>
-                <td>
-                    <a href="/run/${run.run_id}" class="btn btn-sm">View Details</a>
-                </td>
-            </tr>
-        `;
+                    <tr>
+                        <td><code>${run.run_id}</code></td>
+                        <td>${formatTimestamp(run.timestamp)}</td>
+                        <td>${escapeHtml(run.suite_name)}</td>
+                        <td>${formatDuration(run.duration)}</td>
+                        <td><span class="badge ${passRateClass}">${run.summary.pass_rate}%</span></td>
+                        <td>${run.summary.passed}/${run.summary.total}</td>
+                        <td>
+                            <a href="/run/${run.run_id}" class="btn btn-sm">View Details</a>
+                        </td>
+                    </tr>
+                `;
             });
 
             html += '</tbody></table>';
@@ -596,28 +521,18 @@
             indicator.style.cssText = 'position: fixed; top: 80px; right: 20px; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; display: flex; gap: 10px; align-items: center;';
 
             if (type === 'status') {
-                let statusColor = '#10b981'; // Default green for PASS
-                let statusText = 'Passed';
-
-                if (value === 'FAIL') {
-                    statusColor = '#ef4444';
-                    statusText = 'Failed';
-                } else if (value === 'SKIP') {
-                    statusColor = '#f59e0b';
-                    statusText = 'Skipped';
-                }
-
+                const statusColor = value === 'PASS' ? '#10b981' : '#ef4444';
                 indicator.innerHTML = `
-            <span style="background: ${statusColor}; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>
-            <span>Filtered by: <strong>${statusText}</strong></span>
-            <button onclick="clearFilter()" style="background: white; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕ Clear</button>
-        `;
+                    <span style="background: ${statusColor}; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>
+                    <span>Filtered by: <strong>${value === 'PASS' ? 'Passed' : 'Failed'}</strong></span>
+                    <button onclick="clearFilter()" style="background: white; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕ Clear</button>
+                `;
             } else if (type === 'tag') {
                 indicator.innerHTML = `
-            <span style="background: #f59e0b; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>
-            <span>Tag: <strong>${value}</strong></span>
-            <button onclick="clearFilter()" style="background: white; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕ Clear</button>
-        `;
+                    <span style="background: #f59e0b; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>
+                    <span>Tag: <strong>${value}</strong></span>
+                    <button onclick="clearFilter()" style="background: white; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">✕ Clear</button>
+                `;
             }
 
             document.body.appendChild(indicator);
@@ -739,17 +654,22 @@
 
         function formatTimestamp(timestamp) {
             if (!timestamp) return '-';
-            const date = new Date(timestamp);
-            if (isNaN(date.getTime())) return timestamp.substring(0, 19).replace('T', ' ');
 
-            const yyyy = date.getUTCFullYear();
-            const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
-            const dd = String(date.getUTCDate()).padStart(2, '0');
-            const hh = String(date.getUTCHours()).padStart(2, '0');
-            const min = String(date.getUTCMinutes()).padStart(2, '0');
-            const ss = String(date.getUTCSeconds()).padStart(2, '0');
+            try {
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) return timestamp;
 
-            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+                return date.toLocaleString('bg-BG', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                console.error('Error parsing timestamp:', timestamp, error);
+                return timestamp;
+            }
         }
 
         function formatDuration(seconds) {

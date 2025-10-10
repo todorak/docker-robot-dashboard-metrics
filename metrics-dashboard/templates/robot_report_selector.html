@@ -22,7 +22,7 @@
             <select id="runSelector" onchange="loadReport()" style="width: 100%; max-width: 600px; padding: 12px; font-size: 1em; border: 2px solid #e5e7eb; border-radius: 8px; background: white;">
                 {% for run in runs %}
                 <option value="{{ run.run_id }}" {% if run.run_id == selected_run_id %}selected{% endif %}>
-                    {{ run.timestamp }} - {{ run.suite_name }} - 
+                    {{ run.timestamp[:19].replace('T', ' ') }} - {{ run.suite_name }} -
                     Pass Rate: {{ run.summary.pass_rate }}% 
                     ({{ run.summary.passed }}/{{ run.summary.total }})
                 </option>

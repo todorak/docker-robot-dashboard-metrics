@@ -1,0 +1,184 @@
+Built with ❤️ by Sunday Natural Products GmbH
+Happy Testing! 🚀
+
+# Changelog
+All notable changes to this project will be documented in this file.
+The format is based on Keep a Changelog,
+and this project adheres to Semantic Versioning.
+
+Unreleased
+Planned
+
+Dark mode toggle
+Suite analysis pages
+Real-time WebSocket updates
+Advanced search functionality
+PDF report generation
+Email notifications
+
+
+1.0.0 - 2025-10-10
+Added
+
+Dashboard - Main analytics dashboard with overview statistics
+Tag Analysis - Dedicated pages for tag-specific analysis
+API Documentation - Interactive API explorer with try-it-out functionality
+Run Details - Detailed view of individual test runs
+Trend Charts - Pass rate and duration visualization over time
+Flaky Test Detection - Automatic identification of unstable tests
+Skip Support - Display and filter skipped tests
+Run Comparison - Side-by-side comparison of test runs
+CSV Export - Download tag analysis data
+Filtering - Filter by status (PASS/FAIL/SKIP), tags, and time ranges
+REST API - Comprehensive programmatic access to metrics
+Docker Support - Complete Docker and docker-compose setup
+Multi-architecture - AMD64 and ARM64 support
+Health Checks - Built-in monitoring endpoints
+
+Features
+Dashboard
+
+Real-time test execution statistics
+Pass rate trend over time
+Test distribution (Passed/Failed/Skipped)
+Tests by tag visualization
+Recent runs table with navigation
+Flaky tests detection
+Slowest tests analysis
+
+Tag Analysis
+
+Tag-specific performance metrics
+Historical tracking across multiple runs
+Individual test performance
+Run-to-run comparison tool
+Time range and run limit filters
+CSV export functionality
+Breadcrumb navigation
+
+API
+
+GET /health - Health check endpoint
+GET /api/status - Overall status
+GET /api/runs - List all runs
+GET /api/runs/{run_id} - Run details
+GET /api/trends - Trend data
+GET /api/flaky-tests - Flaky test detection
+GET /api/slowest-tests - Performance analysis
+GET /api/tag-stats - Tag statistics
+GET /api/tag/{tag} - Tag details
+GET /api/tag/{tag}/history - Tag history
+GET /api/tag/{tag}/export - CSV export
+GET /api/suite-stats - Suite statistics
+GET /api/compare - Compare runs
+POST /api/parse - Force parse output.xml
+POST /api/clear - Clear historical data
+DELETE /api/delete/{run_id} - Delete run
+
+UI/UX
+
+Responsive design for mobile and desktop
+Smooth animations and transitions
+Interactive charts with click-to-drill-down
+Beautiful gradient styling
+Hover effects and tooltips
+Loading states and error handling
+Print-friendly layouts
+
+Technical
+Backend
+
+Flask web framework
+Custom metrics parser for Robot Framework XML
+JSON-based data persistence
+Incremental parsing and updates
+Historical data management
+Error handling and logging
+
+Frontend
+
+Jinja2 templating
+Chart.js for visualizations
+Vanilla JavaScript (no heavy frameworks)
+CSS3 animations and gradients
+Responsive grid layouts
+
+DevOps
+
+Docker containerization
+Docker Compose orchestration
+Health check integration
+Volume management for persistence
+Environment-based configuration
+
+Documentation
+
+Comprehensive README with quick start
+Interactive API documentation
+Architecture diagrams
+Troubleshooting guide
+Contributing guidelines
+Code examples and usage patterns
+
+
+0.1.0 - 2025-10-01
+Added
+
+Initial project structure
+Basic Flask application
+Simple dashboard prototype
+Robot Framework XML parser
+Basic API endpoints
+
+
+Version History
+
+v1.0.0 - Full production release with complete feature set
+v0.1.0 - Initial prototype and proof of concept
+
+
+Upgrade Guide
+From 0.x to 1.0.0
+
+Backup your data:
+
+cp -r data/ data.backup/
+
+Pull latest changes:
+
+git pull origin main
+
+Rebuild containers:
+
+docker-compose down
+docker-compose build
+docker-compose up -d
+
+Verify migration:
+
+curl http://localhost:5000/health
+curl http://localhost:5000/api/status
+
+Breaking Changes
+v1.0.0
+
+None (initial release)
+
+
+Deprecations
+v1.0.0
+
+None (initial release)
+
+
+Security Updates
+v1.0.0
+
+No security vulnerabilities in initial release
+Regular dependency updates recommended
+
+
+Contributors
+
+@Todor Ivanov - Initial development
+Sunday Natural Products GmbH - Project sponsor

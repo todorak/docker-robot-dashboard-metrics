@@ -15,7 +15,7 @@
             <h2>📊 Run Details</h2>
             <div class="run-meta">
                 <span class="run-id"><strong>Run ID:</strong> <code>{{ run.run_id }}</code></span>
-                <span class="run-time"><strong>Time:</strong> {{ run.timestamp }}</span>
+                <span class="run-time"><strong>Time:</strong> {{ run.timestamp[:19].replace('T', ' ') }}</span>
                 <span class="run-duration"><strong>Duration:</strong> {{ "%.2f"|format(run.duration) }}s</span>
             </div>
         </div>

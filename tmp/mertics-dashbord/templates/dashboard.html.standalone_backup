@@ -1,0 +1,708 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Robot Framework Metrics{% endblock %}
+
+{% block extra_head %}
+    <style>
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #1f2937;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #6b7280;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #ef4444;
+        }
+
+        .test-item {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+
+        .test-item:hover {
+            background: #f3f4f6;
+            transform: translateX(4px);
+        }
+
+        .test-item.pass {
+            border-left-color: #10b981;
+        }
+
+        .test-item.fail {
+            border-left-color: #ef4444;
+        }
+
+        .test-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .test-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Chart hover effect */
+        .chart-container {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .chart-container:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Enhanced stat cards */
+        .stat-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+
+        <!-- Header Section -->
+        <div class="dashboard-header">
+            <h2>📊 Test Execution Dashboard</h2>
+            <div class="header-actions">
+                <button onclick="refreshData()" class="btn btn-primary">🔄 Refresh</button>
+                <button onclick="parseResults()" class="btn btn-success">📊 Parse Latest</button>
+            </div>
+        </div>
+
+        <!-- Status Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-content">
+                    <h3 id="total-runs">-</h3>
+                    <p>Total Runs</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <h3 id="pass-rate">-</h3>
+                    <p>Latest Pass Rate</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-content">
+                    <h3 id="duration">-</h3>
+                    <p>Latest Duration</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🧪</div>
+                <div class="stat-content">
+                    <h3 id="total-tests">-</h3>
+                    <p>Total Tests</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>📈 Pass Rate Trend</h3>
+                <canvas id="passRateChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>⏱️ Duration Trend</h3>
+                <canvas id="durationChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Test Results Breakdown -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>🧪 Test Results Distribution</h3>
+                <canvas id="resultsChart"></canvas>
+            </div>
+            <div class="chart-container" onclick="showTagInfo()">
+                <h3>🏷️ Tests by Tag <small style="color: #6b7280; font-size: 0.875rem;">(Click bars to filter)</small></h3>
+                <canvas id="tagsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Flaky Tests Section -->
+        <div class="section">
+            <h3>⚠️ Flaky Tests (Unstable)</h3>
+            <div id="flaky-tests" class="table-container">
+                <p class="loading">Loading flaky tests...</p>
+            </div>
+        </div>
+
+        <!-- Slowest Tests Section -->
+        <div class="section">
+            <h3>🐌 Slowest Tests</h3>
+            <div id="slowest-tests" class="table-container">
+                <p class="loading">Loading slowest tests...</p>
+            </div>
+        </div>
+
+        <!-- Recent Runs Section -->
+        <div class="section">
+            <h3>📋 Recent Test Runs</h3>
+            <div id="recent-runs" class="table-container">
+                <p class="loading">Loading recent runs...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal for Tag Details -->
+    <div id="tagModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Tests</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+    <script>
+        let charts = {};
+        let tagStatsData = [];
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+        });
+
+        async function loadDashboardData() {
+            try {
+                await Promise.all([
+                    loadStats(),
+                    loadTrends(),
+                    loadFlakyTests(),
+                    loadSlowestTests(),
+                    loadRecentRuns(),
+                    loadTagStats()
+                ]);
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        async function loadStats() {
+            const response = await fetch('/api/status');
+            const data = await response.json();
+
+            document.getElementById('total-runs').textContent = data.total_runs || 0;
+
+            if (data.latest_run) {
+                document.getElementById('pass-rate').textContent = data.latest_run.pass_rate + '%';
+
+                const runResponse = await fetch(`/api/runs/${data.latest_run.run_id}`);
+                const runData = await runResponse.json();
+
+                document.getElementById('duration').textContent = formatDuration(runData.duration);
+                document.getElementById('total-tests').textContent = runData.summary.total;
+            }
+        }
+
+        async function loadTrends() {
+            const response = await fetch('/api/trends?limit=20');
+            const data = await response.json();
+
+            createPassRateChart(data);
+            createDurationChart(data);
+            createResultsChart(data);
+        }
+
+        async function loadTagStats() {
+            const response = await fetch('/api/tag-stats');
+            const data = await response.json();
+
+            tagStatsData = data.tags;
+            createTagsChart(data.tags);
+        }
+
+        function createPassRateChart(data) {
+            const ctx = document.getElementById('passRateChart');
+            if (charts.passRate) charts.passRate.destroy();
+
+            charts.passRate = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.timestamps.map(t => formatTimestamp(t)),
+                    datasets: [{
+                        label: 'Pass Rate %',
+                        data: data.pass_rates,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function createDurationChart(data) {
+            const ctx = document.getElementById('durationChart');
+            if (charts.duration) charts.duration.destroy();
+
+            charts.duration = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.timestamps.map(t => formatTimestamp(t)),
+                    datasets: [{
+                        label: 'Duration (seconds)',
+                        data: data.durations,
+                        backgroundColor: '#3b82f6',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + 's';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function createResultsChart(data) {
+            const ctx = document.getElementById('resultsChart');
+            if (charts.results) charts.results.destroy();
+
+            const latestPassed = data.passed[data.passed.length - 1] || 0;
+            const latestFailed = data.failed[data.failed.length - 1] || 0;
+
+            charts.results = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Passed', 'Failed'],
+                    datasets: [{
+                        data: [latestPassed, latestFailed],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createTagsChart(tags) {
+            const ctx = document.getElementById('tagsChart');
+            if (charts.tags) charts.tags.destroy();
+
+            if (!tags || tags.length === 0) {
+                ctx.parentElement.innerHTML = '<p class="no-data">No tag data available</p>';
+                return;
+            }
+
+            charts.tags = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: tags.map(t => t.name),
+                    datasets: [
+                        {
+                            label: 'Passed',
+                            data: tags.map(t => t.passed),
+                            backgroundColor: '#10b981',
+                        },
+                        {
+                            label: 'Failed',
+                            data: tags.map(t => t.failed),
+                            backgroundColor: '#ef4444',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const tagName = tags[index].name;
+                            showTagDetails(tagName);
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                footer: () => '💡 Click to see tests'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function showTagDetails(tagName) {
+            const modal = document.getElementById('tagModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            // Show modal with loading
+            modal.classList.add('show');
+            modalTitle.textContent = `🏷️ Tests tagged with "${tagName}"`;
+            modalBody.innerHTML = '<div class="spinner"></div>';
+
+            // Fetch latest run details
+            const runsResponse = await fetch('/api/runs?limit=1');
+            const runsData = await runsResponse.json();
+
+            if (runsData.runs.length === 0) {
+                modalBody.innerHTML = '<p class="no-data">No runs available</p>';
+                return;
+            }
+
+            const latestRunId = runsData.runs[0].run_id;
+            const runResponse = await fetch(`/api/runs/${latestRunId}`);
+            const runData = await runResponse.json();
+
+            // Filter tests by tag
+            const filteredTests = runData.tests.filter(test =>
+                test.tags.includes(tagName)
+            );
+
+            if (filteredTests.length === 0) {
+                modalBody.innerHTML = '<p class="no-data">No tests found with this tag</p>';
+                return;
+            }
+
+            // Display tests
+            let html = '';
+            filteredTests.forEach(test => {
+                const statusClass = test.status === 'PASS' ? 'pass' : 'fail';
+                html += `
+            <div class="test-item ${statusClass}">
+                <div class="test-name">${escapeHtml(test.name)}</div>
+                <div class="test-meta">
+                    <span><strong>Status:</strong> <span class="badge ${test.status === 'PASS' ? 'badge-success' : 'badge-danger'}">${test.status}</span></span>
+                    <span><strong>Duration:</strong> ${formatDuration(test.duration)}</span>
+                </div>
+                ${test.message ? `<div style="margin-top: 0.5rem; font-size: 0.875rem; color: #6b7280;">${escapeHtml(test.message.substring(0, 100))}${test.message.length > 100 ? '...' : ''}</div>` : ''}
+            </div>
+        `;
+            });
+
+            modalBody.innerHTML = html;
+        }
+
+        function closeModal() {
+            document.getElementById('tagModal').classList.remove('show');
+        }
+
+        // Close modal on outside click
+        document.getElementById('tagModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Close modal on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        function showTagInfo() {
+            alert('💡 Tip: Click on any bar in the chart to see tests with that tag!');
+        }
+
+        async function loadFlakyTests() {
+            const response = await fetch('/api/flaky-tests?runs=10');
+            const data = await response.json();
+
+            const container = document.getElementById('flaky-tests');
+
+            if (data.tests.length === 0) {
+                container.innerHTML = '<p class="no-data">✅ No flaky tests detected!</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>Test Name</th><th>Fail Rate</th><th>Passed</th><th>Failed</th><th>Total Runs</th></tr></thead><tbody>';
+
+            data.tests.forEach(test => {
+                html += `
+            <tr>
+                <td>${escapeHtml(test.name)}</td>
+                <td><span class="badge badge-warning">${test.fail_rate}%</span></td>
+                <td><span class="badge badge-success">${test.passed}</span></td>
+                <td><span class="badge badge-danger">${test.failed}</span></td>
+                <td>${test.total}</td>
+            </tr>
+        `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function loadSlowestTests() {
+            const response = await fetch('/api/slowest-tests');
+            const data = await response.json();
+
+            const container = document.getElementById('slowest-tests');
+
+            if (data.tests.length === 0) {
+                container.innerHTML = '<p class="no-data">No test data available</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>Test Name</th><th>Duration</th><th>Status</th><th>Tags</th></tr></thead><tbody>';
+
+            data.tests.forEach(test => {
+                const statusClass = test.status === 'PASS' ? 'badge-success' : 'badge-danger';
+                html += `
+            <tr>
+                <td>${escapeHtml(test.name)}</td>
+                <td>${formatDuration(test.duration)}</td>
+                <td><span class="badge ${statusClass}">${test.status}</span></td>
+                <td>${test.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
+            </tr>
+        `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function loadRecentRuns() {
+            const response = await fetch('/api/runs?limit=10');
+            const data = await response.json();
+
+            const container = document.getElementById('recent-runs');
+
+            if (data.runs.length === 0) {
+                container.innerHTML = '<p class="no-data">No runs available. Run tests first!</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>Run ID</th><th>Timestamp</th><th>Suite</th><th>Duration</th><th>Pass Rate</th><th>Tests</th><th>Actions</th></tr></thead><tbody>';
+
+            data.runs.forEach(run => {
+                const passRateClass = run.summary.pass_rate >= 80 ? 'badge-success' :
+                    run.summary.pass_rate >= 50 ? 'badge-warning' : 'badge-danger';
+                html += `
+            <tr>
+                <td><code>${run.run_id}</code></td>
+                <td>${formatTimestamp(run.timestamp)}</td>
+                <td>${escapeHtml(run.suite_name)}</td>
+                <td>${formatDuration(run.duration)}</td>
+                <td><span class="badge ${passRateClass}">${run.summary.pass_rate}%</span></td>
+                <td>${run.summary.passed}/${run.summary.total}</td>
+                <td>
+                    <a href="/run/${run.run_id}" class="btn btn-sm">View Details</a>
+                </td>
+            </tr>
+        `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function parseResults() {
+            try {
+                const response = await fetch('/api/parse', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('✅ Results parsed successfully! Run ID: ' + data.run_id);
+                    loadDashboardData();
+                } else {
+                    alert('❌ Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Error parsing results: ' + error.message);
+            }
+        }
+
+        function refreshData() {
+            loadDashboardData();
+        }
+
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '-';
+
+            try {
+                const date = new Date(timestamp);
+
+                if (isNaN(date.getTime())) {
+                    return timestamp;
+                }
+
+                return date.toLocaleString('bg-BG', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                console.error('Error parsing timestamp:', timestamp, error);
+                return timestamp;
+            }
+        }
+
+        function formatDuration(seconds) {
+            if (seconds < 60) return seconds + 's';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.round(seconds % 60);
+            return `${mins}m ${secs}s`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+{% endblock %}
