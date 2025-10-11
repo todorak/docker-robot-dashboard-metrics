@@ -71,6 +71,7 @@
             </div>
         </div>
 
+
         <!-- Tag Details Section (hidden by default) -->
         <div id="tag-details-section" class="section" style="display: none;">
             <!-- Will be populated dynamically -->
@@ -739,17 +740,7 @@
 
         function formatTimestamp(timestamp) {
             if (!timestamp) return '-';
-            const date = new Date(timestamp);
-            if (isNaN(date.getTime())) return timestamp.substring(0, 19).replace('T', ' ');
-
-            const yyyy = date.getUTCFullYear();
-            const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
-            const dd = String(date.getUTCDate()).padStart(2, '0');
-            const hh = String(date.getUTCHours()).padStart(2, '0');
-            const min = String(date.getUTCMinutes()).padStart(2, '0');
-            const ss = String(date.getUTCSeconds()).padStart(2, '0');
-
-            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+            return timestamp.substring(0, 19).replace('T', ' ');
         }
 
         function formatDuration(seconds) {
